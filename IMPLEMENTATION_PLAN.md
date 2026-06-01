@@ -1,6 +1,8 @@
-# Benelux AI Job Scout — Free Implementation Plan
+# Europe Design & Product Job Scout — Free Implementation Plan
 
-> A personal job-search intelligence tool for ML Engineer / Data Scientist / AI Engineer roles across **Belgium, Netherlands, and Luxembourg**. It collects vacancies from free sources, normalizes messy multilingual job data, detects employment type and **language blockers** (Dutch/French/German/Luxembourgish), scores each role against your CV, and helps you prioritize and tailor applications.
+> A personal job-search intelligence tool for **Designers and Product Managers** across **all of Europe + the UK**, with **Belgium and the Netherlands** as the prioritized home region. It collects vacancies from free sources, normalizes messy multilingual job data, classifies role **category / discipline / grade**, detects employment type and **language blockers** (is English enough, or is a local language required?), scores each role against your CV, and helps you prioritize and tailor applications.
+>
+> **History:** this started as the *Benelux AI Job Scout* (ML / Data / AI roles in BE/NL/LU). It was repurposed in June 2026 to target Design & Product roles across Europe — the architecture below is unchanged; only the domain (role/skill rules, search terms, geography, filters, branding) was swapped. Sections describing ML roles / Benelux-only scope are kept for historical context.
 >
 > **Hard constraint: $0 to build and $0 to run, for a single user.** Every component was chosen against free-tier limits. Free tiers move — these were last verified **2026-06-01**, and one has since tightened: Gemini cut its free request quota in Dec 2025 (see §2 / §12). The design still runs at $0; the headroom is just smaller than first written.
 

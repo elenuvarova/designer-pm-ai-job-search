@@ -14,11 +14,17 @@ const router = Router();
 // Works on both Postgres and SQLite without the NULLS LAST keyword.
 const RECENCY_ORDER = [[sequelize.literal("posted_at IS NULL"), "ASC"], ["posted_at", "DESC"]];
 
+// BE/NL are the prioritised home region — surface them first, then by recency.
+// CASE → 1/0 (not a raw boolean) so NULL countries (remote jobs) sort as 0, not via
+// Postgres's DESC-NULLS-FIRST which would otherwise float remote jobs to the top.
+// Works identically on Postgres and SQLite.
+const HOME_FIRST = [sequelize.literal("CASE WHEN country IN ('BE','NL') THEN 1 ELSE 0 END"), "DESC"];
+
 // Attributes returned for each classification, shared by both sort paths.
 const CLASS_ATTRS = [
-  "role_family", "seniority", "employment_type", "remote_type",
+  "category", "role_family", "seniority", "employment_type", "remote_type",
   "job_post_language", "required_languages", "optional_languages",
-  "language_blocker", "language_match",
+  "language_blocker", "language_match", "portfolio_required",
 ];
 
 // Cap on how many (most-recent) filtered jobs get scored for the match sort —
@@ -26,8 +32,9 @@ const CLASS_ATTRS = [
 const MAX_SCORED = 600;
 
 // GET /api/jobs
-// Filters: country, source, q (title search), language_match, employment_type,
-//          remote_type, role_family, seniority, blocker (bool)
+// Filters: country, source, q (title search), language_match (CSV ok), employment_type,
+//          remote_type, category, role_family, seniority, blocker (bool),
+//          portfolio_required (bool), min_salary (int), home_first (1 = BE/NL first)
 // Pagination: page (1-based), limit (default 50, max 100)
 router.get("/", async (req, res) => {
   try {
@@ -38,21 +45,40 @@ router.get("/", async (req, res) => {
     const jobWhere = {};
     if (req.query.country) jobWhere.country = req.query.country.toUpperCase();
     if (req.query.q) jobWhere.title = { [Op.like]: `%${req.query.q}%` };
+    // min_salary: keep jobs whose stated pay reaches the floor (drops salary-less jobs,
+    // which is acceptable since the filter is opt-in).
+    const minSalary = parseInt(req.query.min_salary) || 0;
+    if (minSalary > 0) {
+      jobWhere[Op.or] = [
+        { salary_max: { [Op.gte]: minSalary } },
+        { salary_min: { [Op.gte]: minSalary } },
+      ];
+    }
 
     const sourceWhere = {};
     if (req.query.source) sourceWhere.key = req.query.source;
 
     const classWhere = {};
-    if (req.query.language_match) classWhere.language_match = req.query.language_match;
+    if (req.query.language_match) {
+      // CSV-aware: "good,maybe,unknown" → IN (...), single value → equality.
+      const vals = req.query.language_match.split(",").map((v) => v.trim()).filter(Boolean);
+      classWhere.language_match = vals.length > 1 ? { [Op.in]: vals } : vals[0];
+    }
     if (req.query.employment_type) classWhere.employment_type = req.query.employment_type;
     if (req.query.remote_type) classWhere.remote_type = req.query.remote_type;
+    if (req.query.category) classWhere.category = req.query.category;
     if (req.query.role_family) classWhere.role_family = req.query.role_family;
     if (req.query.seniority) classWhere.seniority = req.query.seniority;
+    if (req.query.portfolio_required === "true") classWhere.portfolio_required = true;
     if (req.query.blocker !== undefined) {
       classWhere.language_blocker = req.query.blocker === "true";
     }
 
     const hasClassFilter = Object.keys(classWhere).length > 0;
+
+    // Surface BE/NL first unless the user picked a specific country (then it's moot).
+    const homeFirst = req.query.home_first === "1" && !req.query.country;
+    const order = homeFirst ? [HOME_FIRST, ...RECENCY_ORDER] : RECENCY_ORDER;
 
     const sourceInclude = (attrs) => ({ model: Source, where: sourceWhere, attributes: attrs });
     const classInclude = (attrs) => ({
@@ -72,21 +98,24 @@ router.get("/", async (req, res) => {
       const candidates = await Job.findAll({
         where: jobWhere,
         include: [sourceInclude([]), classInclude([])],
-        attributes: ["id", "title", "description", "posted_at"],
-        order: RECENCY_ORDER,
+        attributes: ["id", "title", "description", "posted_at", "country"],
+        order: order,
         limit: MAX_SCORED,
         subQuery: false,
       });
 
+      const isHome = (c) => (c === "BE" || c === "NL" ? 1 : 0);
       let scored = candidates.map((j) => ({
         id: j.id,
         score: scoreJobText(cvTerms, `${j.title || ""} ${(j.description || "").slice(0, 3000)}`),
         posted_at: j.posted_at,
+        country: j.country,
       }));
       if (minMatch > 0) scored = scored.filter((s) => s.score >= minMatch);
       scored.sort(
         (a, b) =>
           b.score - a.score ||
+          (homeFirst ? isHome(b.country) - isHome(a.country) : 0) ||
           new Date(b.posted_at || 0) - new Date(a.posted_at || 0)
       );
 
@@ -134,7 +163,7 @@ router.get("/", async (req, res) => {
         sourceInclude(["key", "label", "attribution_html"]),
         classInclude(CLASS_ATTRS),
       ],
-      order: RECENCY_ORDER,
+      order,
       limit,
       offset,
       distinct: true,

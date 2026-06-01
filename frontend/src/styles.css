@@ -230,6 +230,23 @@ button { cursor: pointer; font: inherit; }
 }
 .filter-clear:hover { color: var(--text-1); border-color: var(--text-3); }
 
+/* Checkbox-style filter (e.g. Portfolio required) — aligns to the bottom of the row */
+.filter-group--checkbox { justify-content: flex-end; }
+.filter-checkbox {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--text-sm);
+  color: var(--text-2);
+  cursor: pointer;
+  padding: var(--space-2) 0;
+  white-space: nowrap;
+}
+.filter-checkbox input { accent-color: var(--accent); cursor: pointer; }
+
+/* Salary on a job card — subtle highlight so pay stands out in the meta row */
+.job-salary { color: var(--text-2); font-weight: var(--weight-medium); }
+
 /* ─── Feed stats ─────────────────────────────────────────────────── */
 .feed-stats {
   font-size: var(--text-sm);

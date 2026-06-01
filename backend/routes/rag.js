@@ -23,7 +23,7 @@ Location: ${job.location_raw || job.country || "—"}
 Write a tight, scannable briefing for the candidate, using these sections with short bullets:
 1. **What they do** — 1–2 sentences on the product and business model.
 2. **Scale & stage** — startup / scale-up / enterprise, plus any widely-known facts.
-3. **For an ML/Data/AI candidate** — likely tech stack or data-culture signals relevant to this role.
+3. **For a design / product candidate** — design maturity, product culture, tools or ways of working relevant to this role.
 4. **Smart questions to ask** — 3 questions that show genuine research.
 5. **Watch-outs** — one thing to verify or a possible red flag.
 

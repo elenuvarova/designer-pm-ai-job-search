@@ -15,6 +15,9 @@ const Job = sequelize.define(
     description: { type: DataTypes.TEXT },
     apply_url: { type: DataTypes.TEXT },
     posted_at: { type: DataTypes.DATE },
+    salary_min: { type: DataTypes.FLOAT },
+    salary_max: { type: DataTypes.FLOAT },
+    salary_currency: { type: DataTypes.STRING(3) },
     raw_json: { type: DataTypes.JSON },
     dedupe_hash: { type: DataTypes.STRING(40) },
     embedding: { type: DataTypes.JSON }, // float[768] from gemini-embedding-001; null until backfilled

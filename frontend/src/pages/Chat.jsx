@@ -3,9 +3,9 @@ import { Link } from "react-router-dom";
 import Navbar from "../components/Navbar.jsx";
 
 const SUGGESTIONS = [
-  "Senior ML roles in NL that don't need Dutch",
-  "Remote LLM/GenAI jobs that match my CV",
-  "Which companies hire data engineers in Belgium?",
+  "Senior product designer roles in NL that don't need Dutch",
+  "Remote UX jobs across Europe that match my CV",
+  "Which companies hire product managers in Belgium?",
 ];
 
 export default function Chat() {

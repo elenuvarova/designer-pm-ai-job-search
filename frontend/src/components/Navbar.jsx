@@ -14,7 +14,7 @@ export default function Navbar({ onHelpClick }) {
   return (
     <nav className="navbar">
       <Link to="/jobs" className="navbar-brand">
-        Benelux AI Job Scout
+        Design &amp; Product Job Scout
       </Link>
       <div className="nav-links">
         {navLink("/jobs", "Jobs")}

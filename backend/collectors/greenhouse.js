@@ -1,6 +1,7 @@
 import { stripHtml, dedupeHash, sleep } from "../nlp/normalize.js";
+import { isTargetRoleTitle } from "../nlp/role.js";
 
-// Curated Benelux tech companies on Greenhouse ATS.
+// Curated European tech companies on Greenhouse ATS — they all hire designers / PMs.
 // 404s are handled gracefully — add/remove tokens freely.
 const COMPANIES = [
   // Belgium
@@ -54,23 +55,24 @@ const COMPANIES = [
   { token: "solarisbank",  name: "Solaris",      country: null, city: null },         // Berlin AI
 ];
 
-const ROLE_PATTERNS = [
-  /machine.?learning/i, /\bml\b/i, /data.?scien/i,
-  /\bai\b/i, /artificial.?intel/i, /mlops/i, /\bnlp\b/i,
-  /computer.?vision/i, /\bllm\b/i, /deep.?learn/i,
-  /data.?engineer/i, /analytics/i, /data.?analys/i,
-  /generative.?ai/i, /foundation.?model/i,
-];
-
-function isRelevant(title) {
-  return ROLE_PATTERNS.some((p) => p.test(title));
-}
-
 function parseCountry(locationName, fallback) {
   if (!locationName) return fallback;
-  if (/netherlands|amsterdam|rotterdam|utrecht|eindhoven|delft|the hague/i.test(locationName)) return "NL";
-  if (/belgium|brussels|ghent|antwerp|leuven|bruges|liège/i.test(locationName)) return "BE";
-  if (/luxembourg/i.test(locationName)) return "LU";
+  const l = locationName.toLowerCase();
+  if (/netherlands|amsterdam|rotterdam|utrecht|eindhoven|delft|the hague/.test(l)) return "NL";
+  if (/belgium|brussels|ghent|antwerp|leuven|bruges|liège/.test(l)) return "BE";
+  if (/luxembourg/.test(l)) return "LU";
+  if (/germany|deutschland|berlin|munich|münchen|hamburg|cologne|köln|frankfurt/.test(l)) return "DE";
+  if (/france|paris|lyon|marseille|toulouse|bordeaux/.test(l)) return "FR";
+  if (/spain|españa|madrid|barcelona|valencia/.test(l)) return "ES";
+  if (/italy|italia|milan|milano|rome|roma|turin/.test(l)) return "IT";
+  if (/austria|österreich|vienna|wien/.test(l)) return "AT";
+  if (/poland|polska|warsaw|kraków|krakow/.test(l)) return "PL";
+  if (/portugal|lisbon|lisboa|porto/.test(l)) return "PT";
+  if (/ireland|dublin/.test(l)) return "IE";
+  if (/sweden|stockholm/.test(l)) return "SE";
+  if (/denmark|copenhagen|københavn/.test(l)) return "DK";
+  if (/switzerland|schweiz|zurich|zürich|geneva/.test(l)) return "CH";
+  if (/united kingdom|england|london|manchester|\buk\b/.test(l)) return "GB";
   return fallback;
 }
 
@@ -81,7 +83,7 @@ export async function collectGreenhouse(source) {
     try {
       const url = `https://boards-api.greenhouse.io/v1/boards/${company.token}/jobs?content=true`;
       const res = await fetch(url, {
-        headers: { "User-Agent": "benelux-job-scout/1.0 (personal research tool)" },
+        headers: { "User-Agent": "design-product-job-scout/1.0 (personal research tool)" },
       });
 
       if (res.status === 404) {
@@ -98,7 +100,7 @@ export async function collectGreenhouse(source) {
       let added = 0;
 
       for (const job of allJobs) {
-        if (!isRelevant(job.title)) continue;
+        if (!isTargetRoleTitle(job.title)) continue;
 
         const locationName = job.location?.name || null;
         const country = parseCountry(locationName, company.country);

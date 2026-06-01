@@ -7,7 +7,7 @@ function jobContext(job) {
   return [
     `Title: ${job.title}`,
     `Company: ${job.company || "Unknown"}`,
-    `Location: ${job.location_raw || job.country || "Benelux"}`,
+    `Location: ${job.location_raw || job.country || "Europe"}`,
     c?.role_family ? `Role family: ${c.role_family}` : null,
     c?.seniority && c.seniority !== "unknown" ? `Seniority: ${c.seniority}` : null,
     c?.employment_type && c.employment_type !== "unclear"

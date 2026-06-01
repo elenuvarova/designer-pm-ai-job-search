@@ -1,14 +1,7 @@
 import { dedupeHash } from "../nlp/normalize.js";
+import { mentionsTargetRole } from "../nlp/role.js";
 
 const ALGOLIA = "https://hn.algolia.com/api/v1";
-
-const ROLE_PATTERNS = [
-  /machine.?learning/i, /\bml\b/i, /data.?scien/i,
-  /\bai\b/i, /artificial.?intel/i, /mlops/i, /\bnlp\b/i,
-  /computer.?vision/i, /\bllm\b/i, /deep.?learn/i,
-  /data.?engineer/i, /analytics/i, /llmops/i,
-  /generative.?ai/i, /foundation.?model/i,
-];
 
 const EUROPE_PATTERNS = [
   /\b(europe|eu\b|emea|worldwide|global|anywhere)\b/i,
@@ -20,10 +13,6 @@ const US_ONLY = [
   /usa.?only/i, /us.?only/i,
   /onsite.{0,20}(new york|san francisco|seattle|austin|chicago)/i,
 ];
-
-function isRelevant(text) {
-  return ROLE_PATTERNS.some((p) => p.test(text));
-}
 
 function isEuropeOk(text) {
   if (US_ONLY.some((p) => p.test(text))) return false;
@@ -63,7 +52,7 @@ function parseComment(text) {
     .slice(0, 100) || "Unknown";
 
   // Pick the segment most likely to be a role title
-  const roleSeg = segments.slice(1).find((s) => ROLE_PATTERNS.some((p) => p.test(s)));
+  const roleSeg = segments.slice(1).find((s) => mentionsTargetRole(s));
   const title = (roleSeg || firstLine).slice(0, 150);
 
   return { company, title };
@@ -71,7 +60,7 @@ function parseComment(text) {
 
 async function get(url) {
   const res = await fetch(url, {
-    headers: { "User-Agent": "benelux-job-scout/1.0 (personal research tool)" },
+    headers: { "User-Agent": "design-product-job-scout/1.0 (personal research tool)" },
   });
   if (!res.ok) throw new Error(`HTTP ${res.status} — ${url}`);
   return res.json();
@@ -122,7 +111,7 @@ export async function collectHnHiring(source) {
     for (const comment of allComments) {
       const text = cleanComment(comment.comment_text || "");
       if (text.length < 50) continue;
-      if (!isRelevant(text)) continue;
+      if (!mentionsTargetRole(text)) continue;
       if (!isEuropeOk(text)) continue;
 
       const { company, title } = parseComment(text);
@@ -145,7 +134,7 @@ export async function collectHnHiring(source) {
       });
     }
 
-    console.log(`  HN Hiring: ${jobs.length} Europe-relevant ML/AI/Data jobs`);
+    console.log(`  HN Hiring: ${jobs.length} Europe-relevant design/product jobs`);
   } catch (err) {
     console.error(`  HN Hiring: ${err.message}`);
   }

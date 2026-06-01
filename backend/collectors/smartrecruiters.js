@@ -1,6 +1,7 @@
 import { stripHtml, dedupeHash, sleep } from "../nlp/normalize.js";
+import { isTargetRoleTitle } from "../nlp/role.js";
 
-// Curated Benelux companies on SmartRecruiters ATS — reaches enterprises/telcos
+// Curated European companies on SmartRecruiters ATS — reaches enterprises/telcos
 // the Greenhouse/Lever lists miss. The postings list carries no description or
 // apply URL, so each kept posting needs one detail call. Slugs are case-sensitive;
 // totalFound === 0 means the slug is wrong/empty → skip.
@@ -20,28 +21,22 @@ const PAGE_SIZE = 100;
 const MAX_LIST_PAGES = 3;   // up to 300 postings scanned per company
 const MAX_DETAILS = 25;     // cap detail calls per company (after filtering)
 
-const ROLE_PATTERNS = [
-  /machine.?learning/i, /\bml\b/i, /data.?scien/i,
-  /\bai\b/i, /artificial.?intel/i, /mlops/i, /\bnlp\b/i,
-  /computer.?vision/i, /\bllm\b/i, /deep.?learn/i,
-  /data.?engineer/i, /analytics/i, /data.?analys/i,
-  /generative.?ai/i, /foundation.?model/i,
-];
+// European country codes we keep (EU/EEA + UK + CH). location.country is a lowercase
+// ISO code; boards like Wavestone span many countries, so we keep only European ones.
+const EUROPE = new Set([
+  "BE", "NL", "LU", "GB", "DE", "FR", "ES", "IT", "AT", "PL", "PT", "IE", "SE", "DK",
+  "NO", "FI", "CH", "CZ", "RO", "GR", "HU", "BG", "HR", "SK", "SI", "EE", "LV", "LT",
+  "IS", "MT", "CY",
+]);
 
-function isRelevant(title) {
-  return ROLE_PATTERNS.some((p) => p.test(title || ""));
-}
-
-// location.country is a lowercase ISO code ("nl"/"be"/"lu"). Keep Benelux only —
-// boards like Wavestone span many countries.
-function beneluxCountry(location) {
+function europeCountry(location) {
   const c = (location?.country || "").toUpperCase();
-  return ["NL", "BE", "LU"].includes(c) ? c : null;
+  return EUROPE.has(c) ? c : null;
 }
 
 async function getJson(url) {
   const res = await fetch(url, {
-    headers: { "User-Agent": "benelux-job-scout/1.0 (personal research tool)" },
+    headers: { "User-Agent": "design-product-job-scout/1.0 (personal research tool)" },
   });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return res.json();
@@ -62,7 +57,7 @@ export async function collectSmartRecruiters(source) {
 
   for (const company of COMPANIES) {
     try {
-      // 1) Scan postings (paged) and keep Benelux ML/Data titles.
+      // 1) Scan postings (paged) and keep European design/product titles.
       const kept = [];
       for (let page = 0; page < MAX_LIST_PAGES; page++) {
         const data = await getJson(
@@ -71,9 +66,9 @@ export async function collectSmartRecruiters(source) {
         if (page === 0 && !data.totalFound) break; // wrong/empty slug
         const content = data.content || [];
         for (const c of content) {
-          const country = beneluxCountry(c.location);
+          const country = europeCountry(c.location);
           if (!country) continue;
-          if (!isRelevant(c.name)) continue;
+          if (!isTargetRoleTitle(c.name)) continue;
           kept.push({ posting: c, country });
         }
         if (content.length < PAGE_SIZE) break; // last page
@@ -109,7 +104,7 @@ export async function collectSmartRecruiters(source) {
         await sleep(300);
       }
 
-      console.log(`  SmartRecruiters/${company.slug}: ${added} relevant (Benelux)`);
+      console.log(`  SmartRecruiters/${company.slug}: ${added} relevant (Europe)`);
     } catch (err) {
       console.error(`  SmartRecruiters/${company.slug}: ${err.message}`);
     }

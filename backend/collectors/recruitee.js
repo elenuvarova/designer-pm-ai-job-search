@@ -1,4 +1,5 @@
 import { stripHtml, dedupeHash, sleep } from "../nlp/normalize.js";
+import { isTargetRoleTitle } from "../nlp/role.js";
 
 // Curated Benelux companies on Recruitee ATS — heavily used by BE/NL firms.
 // GET https://{slug}.recruitee.com/api/offers/ → { offers: [...] }, one call,
@@ -14,26 +15,14 @@ const COMPANIES = [
   { slug: "superlinear", name: "Superlinear", country: "BE", city: "Leuven" }, // ex-Radix.ai (radix slug now redirects here)
 ];
 
-const ROLE_PATTERNS = [
-  /machine.?learning/i, /\bml\b/i, /data.?scien/i,
-  /\bai\b/i, /artificial.?intel/i, /mlops/i, /\bnlp\b/i,
-  /computer.?vision/i, /\bllm\b/i, /deep.?learn/i,
-  /data.?engineer/i, /analytics/i, /data.?analys/i,
-  /generative.?ai/i, /foundation.?model/i,
-];
-
-function isRelevant(title) {
-  return ROLE_PATTERNS.some((p) => p.test(title));
-}
-
-// Recruitee titles often carry a leading emoji, e.g. "🤝  Senior Data Engineer".
+// Recruitee titles often carry a leading emoji, e.g. "🤝  Senior Product Designer".
 function cleanTitle(title) {
   return (title || "").replace(/^[^\p{L}\p{N}]+/u, "").trim();
 }
 
 function parseCountry(code, fallback) {
   const c = (code || "").toUpperCase();
-  return ["NL", "BE", "LU"].includes(c) ? c : fallback;
+  return c.length === 2 ? c : fallback; // accept any ISO-2 country code (all-Europe)
 }
 
 export async function collectRecruitee(source) {
@@ -43,7 +32,7 @@ export async function collectRecruitee(source) {
     try {
       const url = `https://${company.slug}.recruitee.com/api/offers/`;
       const res = await fetch(url, {
-        headers: { "User-Agent": "benelux-job-scout/1.0 (personal research tool)" },
+        headers: { "User-Agent": "design-product-job-scout/1.0 (personal research tool)" },
       });
 
       if (res.status === 404) continue; // not on Recruitee — silent skip
@@ -59,7 +48,7 @@ export async function collectRecruitee(source) {
       for (const o of offers) {
         if (o.status && o.status !== "published") continue;
         const title = cleanTitle(o.title);
-        if (!isRelevant(title)) continue;
+        if (!isTargetRoleTitle(title)) continue;
 
         const country = parseCountry(o.country_code, company.country);
         const desc = stripHtml(`${o.description || ""} ${o.requirements || ""}`);

@@ -1,67 +1,74 @@
-// Gazetteer-based skill extractor — no API calls
+// Gazetteer-based skill extractor for Design & Product roles — no API calls.
+// Drives per-job skill tags, the Skill-Gap radar, and the CV tool-stack match.
 
 const SKILL_DEFS = [
-  // Programming
-  { skill: "Python", re: /\bpython\b/i },
+  // ── Design tools ──
+  { skill: "Figma", re: /\bfigma\b/i },
+  { skill: "FigJam", re: /\bfigjam\b/i },
+  { skill: "Sketch", re: /\bsketch\b/i },
+  { skill: "Adobe XD", re: /\b(adobe\s*)?xd\b/i },
+  { skill: "Photoshop", re: /\bphotoshop\b/i },
+  { skill: "Illustrator", re: /\billustrator\b/i },
+  { skill: "InDesign", re: /\bindesign\b/i },
+  { skill: "After Effects", re: /\bafter\s*effects\b/i },
+  { skill: "Adobe Creative Suite", re: /\b(adobe\s*)?(creative\s*(suite|cloud)|creative\s*cc)\b/i },
+  { skill: "Framer", re: /\bframer\b/i },
+  { skill: "Webflow", re: /\bwebflow\b/i },
+  { skill: "Principle", re: /\bprinciple\b.*\b(prototyp|animat)/i },
+  { skill: "ProtoPie", re: /\bprotopie\b/i },
+  { skill: "InVision", re: /\binvision\b/i },
+  { skill: "Zeplin", re: /\bzeplin\b/i },
+  { skill: "Miro", re: /\bmiro\b/i },
+  { skill: "Maze", re: /\bmaze\b/i },
+  { skill: "Adobe", re: /\badobe\b/i },
+
+  // ── Design craft / methods ──
+  { skill: "Prototyping", re: /\bprototyp(e|ing|es)\b/i },
+  { skill: "Wireframing", re: /\bwireframe?(s|ing)?\b/i },
+  { skill: "Design Systems", re: /\bdesign\s*system(s)?\b/i },
+  { skill: "Design Tokens", re: /\bdesign\s*tokens?\b/i },
+  { skill: "User Research", re: /\buser\s*research\b|\bux\s*research\b/i },
+  { skill: "Usability Testing", re: /\busability\s*test/i },
+  { skill: "Interaction Design", re: /\binteraction\s*design\b/i },
+  { skill: "Information Architecture", re: /\binformation\s*architecture\b/i },
+  { skill: "Accessibility", re: /\baccessibility\b|\bwcag\b|\ba11y\b/i },
+  { skill: "Design Thinking", re: /\bdesign\s*thinking\b/i },
+  { skill: "Service Design", re: /\bservice\s*design\b/i },
+  { skill: "Motion Design", re: /\bmotion\s*(design|graphics)\b/i },
+  { skill: "Branding", re: /\bbrand(ing)?\b/i },
+  { skill: "Typography", re: /\btypography\b/i },
+  { skill: "HTML/CSS", re: /\bhtml\b|\bcss\b/i },
+
+  // ── Product tools ──
+  { skill: "Jira", re: /\bjira\b/i },
+  { skill: "Confluence", re: /\bconfluence\b/i },
+  { skill: "Linear", re: /\blinear\b.*\b(issue|product|roadmap)/i },
+  { skill: "Productboard", re: /\bproductboard\b/i },
+  { skill: "Aha!", re: /\baha!?\b.*\b(roadmap|product)/i },
+  { skill: "Notion", re: /\bnotion\b/i },
+  { skill: "Asana", re: /\basana\b/i },
+  { skill: "Trello", re: /\btrello\b/i },
+
+  // ── Product analytics ──
+  { skill: "Amplitude", re: /\bamplitude\b/i },
+  { skill: "Mixpanel", re: /\bmixpanel\b/i },
+  { skill: "Pendo", re: /\bpendo\b/i },
+  { skill: "Google Analytics", re: /\bgoogle\s*analytics\b|\bga4\b/i },
+  { skill: "Hotjar", re: /\bhotjar\b/i },
   { skill: "SQL", re: /\bsql\b/i },
-  { skill: "R", re: /\bR\b(?!\+|#)/ },
-  { skill: "Scala", re: /\bscala\b/i },
-  { skill: "Java", re: /\bjava\b(?!script)/i },
-  { skill: "JavaScript", re: /\bjavascript\b/i },
-  { skill: "TypeScript", re: /\btypescript\b/i },
-  { skill: "C++", re: /\bc\+\+\b/i },
-  { skill: "Go", re: /\bgolang\b|\bgo\s+programming\b/i },
-  // ML frameworks
-  { skill: "PyTorch", re: /\bpytorch\b/i },
-  { skill: "TensorFlow", re: /\btensorflow\b/i },
-  { skill: "scikit-learn", re: /scikit[\s-]?learn|\bsklearn\b/i },
-  { skill: "XGBoost", re: /\bxgboost\b/i },
-  { skill: "LightGBM", re: /\blightgbm\b/i },
-  { skill: "Keras", re: /\bkeras\b/i },
-  { skill: "Hugging Face", re: /hugging\s*face|\btransformers\b.*library/i },
-  // LLM / AI
-  { skill: "LangChain", re: /\blangchain\b/i },
-  { skill: "LlamaIndex", re: /\llamaindex\b|\bllama.?index\b/i },
-  { skill: "RAG", re: /\brag\b|\bretrieval[\s-]?augmented\b/i },
-  { skill: "Embeddings", re: /\bembeddings?\b/i },
-  { skill: "Vector DB", re: /\bvector\s*(database|store|db)\b|\bpgvector\b|\bchroma\b|\bpinecone\b|\bweaviate\b|\bqdrant\b/i },
-  { skill: "OpenAI API", re: /\bopenai\b/i },
-  { skill: "Azure OpenAI", re: /azure\s+openai/i },
-  // NLP
-  { skill: "NLP", re: /\bnlp\b|\bnatural\s+language\s+processing\b/i },
-  { skill: "spaCy", re: /\bspacy\b/i },
-  { skill: "NLTK", re: /\bnltk\b/i },
-  // Computer Vision
-  { skill: "Computer Vision", re: /\bcomputer\s+vision\b|\bcv\b.*\bdeep\s+learning\b/i },
-  { skill: "OpenCV", re: /\bopencv\b/i },
-  // Data
-  { skill: "Pandas", re: /\bpandas\b/i },
-  { skill: "NumPy", re: /\bnumpy\b/i },
-  { skill: "Spark", re: /\b(apache\s+)?spark\b/i },
-  { skill: "Databricks", re: /\bdatabricks\b/i },
-  { skill: "dbt", re: /\bdbt\b/i },
-  { skill: "Airflow", re: /\bairflow\b/i },
-  { skill: "Kafka", re: /\bkafka\b/i },
-  { skill: "Snowflake", re: /\bsnowflake\b/i },
-  { skill: "BigQuery", re: /\bbigquery\b/i },
-  { skill: "Redshift", re: /\bredshift\b/i },
-  // MLOps
-  { skill: "Docker", re: /\bdocker\b/i },
-  { skill: "Kubernetes", re: /\bkubernetes\b|\bk8s\b/i },
-  { skill: "MLflow", re: /\bmlflow\b/i },
-  { skill: "CI/CD", re: /\bci\/cd\b|\bdevops\b/i },
-  { skill: "Kubeflow", re: /\bkubeflow\b/i },
-  { skill: "Feature Store", re: /\bfeature\s+store\b|\bfeast\b|\btecton\b/i },
-  // Cloud
-  { skill: "AWS", re: /\baws\b|\bamazon\s+web\s+services\b/i },
-  { skill: "GCP", re: /\bgcp\b|\bgoogle\s+cloud\b/i },
-  { skill: "Azure", re: /\bazure\b/i },
-  // Stats & methods
-  { skill: "Statistics", re: /\bstatistics\b|\bstatistical\s+modeling\b/i },
-  { skill: "A/B Testing", re: /\ba\/b\s+test|\bexperimentation\b/i },
-  // Databases
-  { skill: "PostgreSQL", re: /\bpostgresql\b|\bpostgres\b/i },
-  { skill: "MongoDB", re: /\bmongodb\b/i },
+
+  // ── Product craft / methods ──
+  { skill: "Roadmapping", re: /\broadmap(ping|s)?\b/i },
+  { skill: "A/B Testing", re: /\ba\/b\s*test|\bexperimentation\b|\bsplit\s*test/i },
+  { skill: "Agile", re: /\bagile\b/i },
+  { skill: "Scrum", re: /\bscrum\b/i },
+  { skill: "Kanban", re: /\bkanban\b/i },
+  { skill: "OKRs", re: /\bokrs?\b/i },
+  { skill: "User Stories", re: /\buser\s*stor(y|ies)\b/i },
+  { skill: "Product Discovery", re: /\bproduct\s*discovery\b/i },
+  { skill: "Stakeholder Management", re: /\bstakeholder\s*(management|engagement)\b/i },
+  { skill: "Go-to-Market", re: /\bgo[\s-]?to[\s-]?market\b|\bgtm\b/i },
+  { skill: "Product Strategy", re: /\bproduct\s*strategy\b/i },
 ];
 
 export function extractSkills(description) {

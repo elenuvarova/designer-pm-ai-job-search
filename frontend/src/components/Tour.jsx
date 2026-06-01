@@ -6,12 +6,12 @@ const STEPS = [
   {
     target: null,
     title: "Welcome to your Job Scout",
-    body: "Your personal radar for ML, Data Science & AI roles in Belgium, Netherlands and Luxembourg. A 4-step tour to get you started.",
+    body: "Your personal radar for Design & Product roles across Europe & the UK — with Belgium and the Netherlands surfaced first. A 4-step tour to get you started.",
   },
   {
     target: "[data-tour='filters']",
     title: "Smart filters",
-    body: "Filter by country, language, employment type and remote. Results update instantly — no submit button needed.",
+    body: "Filter by category (Design / Product), discipline, grade, country, language, salary and more. Results update instantly — no submit button needed.",
   },
   {
     target: "[data-tour='lang-badge']",
@@ -21,12 +21,12 @@ const STEPS = [
   {
     target: "[data-tour='first-card']",
     title: "Job cards",
-    body: "Shows role family, seniority, employment type and remote. Click — or press Enter — to see the full description, detected skills, and language analysis.",
+    body: "Shows discipline, grade, employment type, remote, salary and whether a portfolio is required. Click — or press Enter — to see the full description, detected tools, and language analysis.",
   },
   {
     target: null,
     title: "You're all set",
-    body: "Jobs are collected daily at 6:17 AM. Try the \"✓ English OK\" language filter to see only English-friendly roles. Happy hunting.",
+    body: "Jobs are collected daily. The feed defaults to English-friendly roles with Belgium & the Netherlands first — switch the Language filter to \"Show all\" to include roles needing a local language. Happy hunting.",
   },
 ];
 

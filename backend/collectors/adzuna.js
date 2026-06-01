@@ -1,49 +1,44 @@
 import { stripHtml, dedupeHash, sleep } from "../nlp/normalize.js";
+import { isTargetRoleTitle } from "../nlp/role.js";
 import { classifyRemote } from "../nlp/remote.js";
-import { classifyEmployment } from "../nlp/employment.js";
 
-// Core Benelux tier — keep every matching role (relocation is on the table here).
-// BE and NL have native Adzuna endpoints. LU has no country endpoint, so we use
-// GB (the broadest international index) with a "Luxembourg" where-filter.
-const CORE = [
-  { endpoint: "be", country: "BE", where: null },
-  { endpoint: "nl", country: "NL", where: null },
-  { endpoint: "gb", country: "LU", where: "Luxembourg" },
+// European Adzuna endpoints — every role type (onsite/hybrid/remote). BE/NL are surfaced
+// first in the API by country. Adzuna has no Luxembourg endpoint, so LU comes from EURES.
+const EUROPE = [
+  { endpoint: "be", country: "BE", currency: "EUR" },
+  { endpoint: "nl", country: "NL", currency: "EUR" },
+  { endpoint: "gb", country: "GB", currency: "GBP" },
+  { endpoint: "de", country: "DE", currency: "EUR" },
+  { endpoint: "fr", country: "FR", currency: "EUR" },
+  { endpoint: "es", country: "ES", currency: "EUR" },
+  { endpoint: "it", country: "IT", currency: "EUR" },
+  { endpoint: "at", country: "AT", currency: "EUR" },
+  { endpoint: "pl", country: "PL", currency: "PLN" },
 ];
 
-// Extended EU + UK tier — keep ONLY remote or contract ("на проект") roles, since
-// the goal for these countries is remote/freelance work, not relocation.
-const EXTENDED = [
-  { endpoint: "gb", country: "GB" },
-  { endpoint: "de", country: "DE" },
-  { endpoint: "fr", country: "FR" },
-  { endpoint: "es", country: "ES" },
-  { endpoint: "it", country: "IT" },
-  { endpoint: "at", country: "AT" },
-  { endpoint: "pl", country: "PL" },
+// USA + Asia — REMOTE roles only (the user wants these regions for remote work, not
+// relocation). Each posting must read as remote to be kept.
+const REMOTE_ONLY = [
+  { endpoint: "us", country: "US", currency: "USD" },
+  { endpoint: "in", country: "IN", currency: "INR" },
+  { endpoint: "sg", country: "SG", currency: "SGD" },
 ];
 
-const QUERIES = ["machine learning", "data scientist", "ai engineer"];
+const QUERIES = ["product designer", "ux designer", "graphic designer", "product manager"];
 const RESULTS_PER_PAGE = 50;
 const BASE = "https://api.adzuna.com/v1/api/jobs";
 
 const REMOTE_HINT =
-  /\bremote\b|work.?from.?home|t[ée]l[ée]travail|home.?office|smart.?working|remote.?first|fully.?remote/i;
+  /\bremote\b|work.?from.?home|home.?office|fully.?remote|remote.?first|distributed\s+team/i;
 
 function parseCity(location) {
   const area = location?.area || [];
   return area[3] || area[2] || null;
 }
 
-// Extended-tier gate: a job qualifies only if it reads as remote OR contract.
-function isRemoteOrContract(job, title, desc) {
+function isRemote(job, title, desc) {
   const text = `${title} ${job.location?.display_name || ""} ${desc}`;
-  const remote =
-    REMOTE_HINT.test(text) || ["remote", "hybrid"].includes(classifyRemote(title, desc));
-  const contract =
-    job.contract_type === "contract" ||
-    classifyEmployment(title, desc).employment_type === "contract";
-  return remote || contract;
+  return REMOTE_HINT.test(text) || classifyRemote(title, desc) === "remote";
 }
 
 export async function collectAdzuna(source) {
@@ -54,23 +49,21 @@ export async function collectAdzuna(source) {
   }
 
   const configs = [
-    ...CORE.map((c) => ({ ...c, extended: false })),
-    ...EXTENDED.map((c) => ({ ...c, extended: true })),
+    ...EUROPE.map((c) => ({ ...c, remoteOnly: false })),
+    ...REMOTE_ONLY.map((c) => ({ ...c, remoteOnly: true })),
   ];
 
   const jobs = [];
   let apiCalls = 0;
 
-  for (const { endpoint, country, where, extended } of configs) {
+  for (const { endpoint, country, currency, remoteOnly } of configs) {
     for (const query of QUERIES) {
-      let url =
+      const url =
         `${BASE}/${endpoint}/search/1` +
         `?app_id=${appId}&app_key=${appKey}` +
         `&results_per_page=${RESULTS_PER_PAGE}` +
         `&what=${encodeURIComponent(query)}` +
         `&content-type=application/json`;
-
-      if (where) url += `&where=${encodeURIComponent(where)}`;
 
       try {
         const res = await fetch(url);
@@ -86,9 +79,12 @@ export async function collectAdzuna(source) {
         let kept = 0;
 
         for (const job of results) {
+          // Adzuna's `what=` search is fuzzy and returns adjacent roles (e.g. a Java
+          // engineer for "product manager"). Gate on the title like every other source.
+          if (!isTargetRoleTitle(job.title)) continue;
           const desc = stripHtml(job.description || "");
-          // Extended EU/UK tier: drop onsite-permanent roles, keep remote/contract.
-          if (extended && !isRemoteOrContract(job, job.title || "", desc)) continue;
+          // USA/Asia: keep remote roles only.
+          if (remoteOnly && !isRemote(job, job.title || "", desc)) continue;
 
           jobs.push({
             source_id: source.id,
@@ -101,13 +97,16 @@ export async function collectAdzuna(source) {
             description: desc,
             apply_url: job.redirect_url || null,
             posted_at: job.created ? new Date(job.created) : null,
+            salary_min: job.salary_min ?? null,
+            salary_max: job.salary_max ?? null,
+            salary_currency: job.salary_min || job.salary_max ? currency : null,
             raw_json: job,
             dedupe_hash: dedupeHash(job.title, job.company?.display_name, country),
           });
           kept++;
         }
 
-        const tier = extended ? "remote/contract" : "all";
+        const tier = remoteOnly ? "remote-only" : "all";
         console.log(`  Adzuna ${country}/"${query}": kept ${kept}/${results.length} (${tier})`);
       } catch (err) {
         console.error(`  Adzuna ${country}/"${query}": ${err.message}`);

@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: benelux-job-scout
+    name: design-product-job-scout
     runtime: docker
     plan: free
     dockerfilePath: ./Dockerfile
@@ -19,4 +19,6 @@ services:
       - key: GEMINI_API_KEY
         sync: false
       - key: GROQ_API_KEY
+        sync: false
+      - key: THE_MUSE_API_KEY
         sync: false

@@ -1,29 +1,12 @@
 import { stripHtml, dedupeHash } from "../nlp/normalize.js";
+import { isTargetRoleTitle } from "../nlp/role.js";
+import { remoteRegionAllowed } from "./geo.js";
 
-// 2 calls/day — well within Remotive's ~4 GET/day soft limit
+// Remotive's native Design and Product categories — 2 calls/day, within its soft limit.
 const ENDPOINTS = [
-  "https://remotive.com/api/remote-jobs?category=data",
-  "https://remotive.com/api/remote-jobs?search=machine+learning",
+  "https://remotive.com/api/remote-jobs?category=design",
+  "https://remotive.com/api/remote-jobs?category=product",
 ];
-
-const ROLE_PATTERNS = [
-  /machine.?learning/i, /\bml\b/i, /data.?scien/i,
-  /\bai\b.*engineer/i, /artificial.?intel/i,
-  /mlops/i, /nlp\b/i, /computer.?vision/i,
-  /llm\b/i, /deep.?learn/i,
-];
-
-// Keep only jobs open to Europe/EMEA/worldwide
-const LOCATION_DENY = [/usa.?only/i, /us.?only/i, /canada.?only/i, /australia.?only/i];
-
-function isRelevantRole(title, tags) {
-  const text = `${title} ${(tags || []).join(" ")}`;
-  return ROLE_PATTERNS.some((p) => p.test(text));
-}
-
-function isDeniedLocation(location) {
-  return LOCATION_DENY.some((p) => p.test(location || ""));
-}
 
 export async function collectRemotive(source) {
   const seen = new Set();
@@ -32,7 +15,7 @@ export async function collectRemotive(source) {
   for (const url of ENDPOINTS) {
     try {
       const res = await fetch(url, {
-        headers: { "User-Agent": "benelux-job-scout/1.0 (personal research tool)" },
+        headers: { "User-Agent": "design-product-job-scout/1.0 (personal research tool)" },
       });
 
       if (!res.ok) {
@@ -45,8 +28,8 @@ export async function collectRemotive(source) {
 
       for (const job of results) {
         if (seen.has(job.id)) continue;
-        if (!isRelevantRole(job.title, job.tags)) continue;
-        if (isDeniedLocation(job.candidate_required_location)) continue;
+        if (!isTargetRoleTitle(job.title, job.tags)) continue;
+        if (!remoteRegionAllowed(job.candidate_required_location)) continue;
 
         seen.add(job.id);
         jobs.push({

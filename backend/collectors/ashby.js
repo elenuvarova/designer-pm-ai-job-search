@@ -1,6 +1,7 @@
 import { stripHtml, dedupeHash, sleep } from "../nlp/normalize.js";
+import { isTargetRoleTitle } from "../nlp/role.js";
 
-// Curated EU/UK + Benelux AI companies on Ashby ATS (zero-auth).
+// Curated EU/UK companies on Ashby ATS (zero-auth) — they hire designers / PMs too.
 // GET https://api.ashbyhq.com/posting-api/job-board/{slug} → { jobs: [...] }
 // Country is resolved per-role from the posting's location; remote roles → null.
 const COMPANIES = [
@@ -19,18 +20,6 @@ const COMPANIES = [
   { slug: "nabla",           name: "Nabla",           country: null, city: null },
   { slug: "granola",         name: "Granola",         country: null, city: null },
 ];
-
-const ROLE_PATTERNS = [
-  /machine.?learning/i, /\bml\b/i, /data.?scien/i,
-  /\bai\b/i, /artificial.?intel/i, /mlops/i, /\bnlp\b/i,
-  /computer.?vision/i, /\bllm\b/i, /deep.?learn/i,
-  /data.?engineer/i, /analytics/i, /data.?analys/i,
-  /generative.?ai/i, /foundation.?model/i, /research.?scien/i,
-];
-
-function isRelevant(title) {
-  return ROLE_PATTERNS.some((p) => p.test(title || ""));
-}
 
 // Map a free-text location to one of the countries we surface; null otherwise.
 function detectCountry(text) {
@@ -57,7 +46,7 @@ export async function collectAshby(source) {
         `https://api.ashbyhq.com/posting-api/job-board/${company.slug}`,
         {
           headers: {
-            "User-Agent": "benelux-job-scout/1.0 (personal research tool)",
+            "User-Agent": "design-product-job-scout/1.0 (personal research tool)",
             Accept: "application/json",
           },
         }
@@ -75,7 +64,7 @@ export async function collectAshby(source) {
 
       for (const j of all) {
         if (j.isListed === false) continue;
-        if (!isRelevant(j.title)) continue;
+        if (!isTargetRoleTitle(j.title)) continue;
 
         const addr = j.address?.postalAddress || {};
         const locText = [

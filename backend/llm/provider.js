@@ -7,7 +7,7 @@ const GEMINI_URL =
 
 const GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
 
-const SYSTEM_PROMPT = `You are a language-requirement classifier for job postings in the Benelux region.
+const SYSTEM_PROMPT = `You are a language-requirement classifier for job postings across Europe.
 
 Given one or more sentences from a job description that mention a language (Dutch, French, German, or Luxembourgish), determine:
 1. Whether each language is REQUIRED or OPTIONAL for the candidate.

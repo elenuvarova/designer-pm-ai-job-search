@@ -1,4 +1,5 @@
 import { stripHtml, dedupeHash, sleep } from "../nlp/normalize.js";
+import { isTargetRoleTitle } from "../nlp/role.js";
 
 // Curated Benelux-connected companies on Lever ATS.
 // ?mode=json returns a JSON array; 404 = company not on Lever.
@@ -21,18 +22,6 @@ const COMPANIES = [
   { slug: "pnlfin",         name: "Finom",          country: "NL", city: "Amsterdam" }, // EU-hosted Lever board (api.eu.lever.co)
 ];
 
-const ROLE_PATTERNS = [
-  /machine.?learning/i, /\bml\b/i, /data.?scien/i,
-  /\bai\b/i, /artificial.?intel/i, /mlops/i, /\bnlp\b/i,
-  /computer.?vision/i, /\bllm\b/i, /deep.?learn/i,
-  /data.?engineer/i, /analytics/i, /data.?analys/i,
-  /generative.?ai/i, /foundation.?model/i,
-];
-
-function isRelevant(title) {
-  return ROLE_PATTERNS.some((p) => p.test(title));
-}
-
 function parseCountry(location, fallback) {
   if (!location) return fallback;
   const t = location.toLowerCase();
@@ -52,7 +41,7 @@ function parseCountry(location, fallback) {
 // Lever has two API hosts: US (api.lever.co) and EU (api.eu.lever.co). A board
 // lives on exactly one; the other returns 404. Try US first, then fall back to EU.
 async function fetchPostings(slug) {
-  const headers = { "User-Agent": "benelux-job-scout/1.0 (personal research tool)" };
+  const headers = { "User-Agent": "design-product-job-scout/1.0 (personal research tool)" };
   for (const host of ["api.lever.co", "api.eu.lever.co"]) {
     const res = await fetch(`https://${host}/v0/postings/${slug}?mode=json`, { headers });
     if (res.ok) return res.json();
@@ -71,7 +60,7 @@ export async function collectLever(source) {
 
       let added = 0;
       for (const p of postings) {
-        if (!isRelevant(p.text || "")) continue;
+        if (!isTargetRoleTitle(p.text || "")) continue;
 
         const location = p.categories?.location || null;
         const country = parseCountry(location, company.country);

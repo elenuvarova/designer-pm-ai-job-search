@@ -7,9 +7,39 @@ import Tour, { shouldShowTour } from "../components/Tour.jsx";
 import { SkeletonFeed, ErrorState, EmptyState } from "../components/States.jsx";
 
 const COUNTRY_FLAGS = {
-  BE: "🇧🇪", NL: "🇳🇱", LU: "🇱🇺",
-  GB: "🇬🇧", DE: "🇩🇪", FR: "🇫🇷", ES: "🇪🇸", IT: "🇮🇹", AT: "🇦🇹", PL: "🇵🇱",
+  BE: "🇧🇪", NL: "🇳🇱", LU: "🇱🇺", GB: "🇬🇧", DE: "🇩🇪", FR: "🇫🇷", ES: "🇪🇸",
+  IT: "🇮🇹", AT: "🇦🇹", PL: "🇵🇱", PT: "🇵🇹", IE: "🇮🇪", SE: "🇸🇪", DK: "🇩🇰",
+  NO: "🇳🇴", FI: "🇫🇮", CH: "🇨🇭", CZ: "🇨🇿", RO: "🇷🇴", GR: "🇬🇷", HU: "🇭🇺",
+  US: "🇺🇸", IN: "🇮🇳", SG: "🇸🇬",
 };
+
+// USA + Asia are collected remote-only (see backend collectors).
+const REMOTE_COUNTRIES = [["US", "United States"], ["IN", "India"], ["SG", "Singapore"]];
+
+// Rest-of-Europe countries we surface in the filter (home region BE/NL is its own group).
+const REST_COUNTRIES = [
+  ["GB", "United Kingdom"], ["DE", "Germany"], ["FR", "France"], ["ES", "Spain"],
+  ["IT", "Italy"], ["AT", "Austria"], ["PL", "Poland"], ["PT", "Portugal"],
+  ["IE", "Ireland"], ["SE", "Sweden"], ["DK", "Denmark"], ["FI", "Finland"],
+  ["NO", "Norway"], ["CH", "Switzerland"], ["LU", "Luxembourg"], ["CZ", "Czechia"],
+  ["RO", "Romania"], ["GR", "Greece"], ["HU", "Hungary"],
+];
+
+// Disciplines (role_family) grouped by category — mirrors backend/nlp/role.js.
+const FAMILIES = {
+  Design: [
+    "Product Design", "UX Research", "Graphic / Visual Design", "Brand / Art Direction",
+    "Motion / 3D / Illustration", "Content Design / UX Writing", "Design Systems", "Design Leadership",
+  ],
+  Product: ["Product Management", "Product Owner", "Growth / Technical Product", "Product Leadership"],
+};
+
+const GRADES = [
+  ["intern", "Intern"], ["junior", "Junior"], ["mid", "Mid"],
+  ["senior", "Senior"], ["lead", "Lead / Head"],
+];
+
+const LANG_DEFAULT = "good,maybe,unknown"; // English-friendly: hides risk + blocker
 
 function relativeTime(iso) {
   if (!iso) return "";
@@ -19,6 +49,15 @@ function relativeTime(iso) {
   if (d < 7)  return `${d}d ago`;
   if (d < 30) return `${Math.floor(d / 7)}w ago`;
   return `${Math.floor(d / 30)}mo ago`;
+}
+
+const CURRENCY = { EUR: "€", GBP: "£", PLN: "zł" };
+function formatSalary(min, max, currency) {
+  if (!min && !max) return null;
+  const sym = CURRENCY[currency] || "";
+  const k = (n) => (n >= 1000 ? `${Math.round(n / 1000)}k` : Math.round(n));
+  if (min && max) return `${sym}${k(min)}–${k(max)}`;
+  return `${sym}${k(min || max)}${min && !max ? "+" : ""}`;
 }
 
 function CvUploadBanner({ onUploaded }) {
@@ -75,6 +114,7 @@ function CvScoreBadge({ score }) {
 
 function JobCard({ job, isFirst, cvScore }) {
   const c = job.JobClassification;
+  const salary = formatSalary(job.salary_min, job.salary_max, job.salary_currency);
   return (
     <Link
       to={`/jobs/${job.id}`}
@@ -96,6 +136,7 @@ function JobCard({ job, isFirst, cvScore }) {
         {job.location_raw && (
           <span>{COUNTRY_FLAGS[job.country] || ""} {job.location_raw}</span>
         )}
+        {salary && <span className="job-salary">{salary}</span>}
       </div>
 
       <div className="job-chips">
@@ -111,6 +152,7 @@ function JobCard({ job, isFirst, cvScore }) {
         {c?.remote_type && c.remote_type !== "unknown" && (
           <span className="chip">{c.remote_type}</span>
         )}
+        {c?.portfolio_required && <span className="chip">📎 portfolio</span>}
         {c?.job_post_language && c.job_post_language !== "english" && (
           <span className="chip chip--warn">posted in {c.job_post_language}</span>
         )}
@@ -136,9 +178,14 @@ export default function JobFeed() {
 
   const q          = searchParams.get("q")              || "";
   const country    = searchParams.get("country")        || "";
-  const langMatch  = searchParams.get("language_match") || "";
+  const category   = searchParams.get("category")       || "";
+  const roleFamily = searchParams.get("role_family")    || "";
+  const seniority  = searchParams.get("seniority")      || "";
+  const langMatch  = searchParams.get("language_match") || LANG_DEFAULT;
   const employment = searchParams.get("employment_type")|| "";
   const remote     = searchParams.get("remote_type")    || "";
+  const minSalary  = searchParams.get("min_salary")     || "";
+  const portfolio  = searchParams.get("portfolio_required") === "true";
   const page       = parseInt(searchParams.get("page")  || "1");
   const sortParam  = searchParams.get("sort");
   const strongOnly = searchParams.get("min_match") === "25";
@@ -151,7 +198,9 @@ export default function JobFeed() {
     : hasCv ? "match"
     : "newest";
 
-  const hasFilters = q || country || langMatch || employment || remote;
+  const hasFilters =
+    q || country || category || roleFamily || seniority || employment || remote ||
+    minSalary || portfolio || searchParams.has("language_match");
 
   const update = useCallback(
     (key, value) => {
@@ -159,6 +208,19 @@ export default function JobFeed() {
       if (value) next.set(key, value);
       else next.delete(key);
       if (key !== "page") next.delete("page");
+      setSearchParams(next, { replace: true });
+    },
+    [searchParams, setSearchParams]
+  );
+
+  // Changing category clears a now-mismatched discipline.
+  const updateCategory = useCallback(
+    (value) => {
+      const next = new URLSearchParams(searchParams);
+      if (value) next.set("category", value);
+      else next.delete("category");
+      next.delete("role_family");
+      next.delete("page");
       setSearchParams(next, { replace: true });
     },
     [searchParams, setSearchParams]
@@ -215,10 +277,16 @@ export default function JobFeed() {
 
     const params = new URLSearchParams();
     if (country)    params.set("country", country);
-    if (langMatch)  params.set("language_match", langMatch);
+    if (category)   params.set("category", category);
+    if (roleFamily) params.set("role_family", roleFamily);
+    if (seniority)  params.set("seniority", seniority);
+    if (langMatch && langMatch !== "all") params.set("language_match", langMatch);
     if (employment) params.set("employment_type", employment);
     if (remote)     params.set("remote_type", remote);
+    if (minSalary)  params.set("min_salary", minSalary);
+    if (portfolio)  params.set("portfolio_required", "true");
     if (q)          params.set("q", q);
+    params.set("home_first", "1"); // surface BE/NL first (ignored when a country is picked)
     if (sort === "match") {
       params.set("sort", "match");
       if (strongOnly) params.set("min_match", "25");
@@ -232,7 +300,7 @@ export default function JobFeed() {
       .catch(onError)
       .finally(onDone);
     return () => { active = false; ctrl.abort(); };
-  }, [country, langMatch, employment, remote, q, page, sort, strongOnly, smart, reloadKey]);
+  }, [country, category, roleFamily, seniority, langMatch, employment, remote, minSalary, portfolio, q, page, sort, strongOnly, smart, reloadKey]);
 
   // Auto-launch tour for first-time users (after data loads)
   useEffect(() => {
@@ -258,12 +326,11 @@ export default function JobFeed() {
       .catch(() => setScores({}));
   }, [hasCv, result]);
 
+  const disciplineOptions = category ? FAMILIES[category] || [] : null;
+
   return (
     <div>
-      <Navbar
-        sub="ML · Data Science · AI Engineering"
-        onHelpClick={() => setShowTour(true)}
-      />
+      <Navbar onHelpClick={() => setShowTour(true)} />
 
       <div className="page">
         {/* Filter bar */}
@@ -291,22 +358,53 @@ export default function JobFeed() {
           </div>
 
           <div className="filter-group">
+            <label className="filter-label" htmlFor="f-category">Category</label>
+            <select id="f-category" value={category} onChange={(e) => updateCategory(e.target.value)}>
+              <option value="">All</option>
+              <option value="Design">🎨 Design</option>
+              <option value="Product">📦 Product</option>
+            </select>
+          </div>
+
+          <div className="filter-group">
+            <label className="filter-label" htmlFor="f-discipline">Discipline</label>
+            <select id="f-discipline" value={roleFamily} onChange={(e) => update("role_family", e.target.value)}>
+              <option value="">All</option>
+              {disciplineOptions
+                ? disciplineOptions.map((f) => <option key={f} value={f}>{f}</option>)
+                : Object.entries(FAMILIES).map(([cat, fams]) => (
+                    <optgroup key={cat} label={cat}>
+                      {fams.map((f) => <option key={f} value={f}>{f}</option>)}
+                    </optgroup>
+                  ))}
+            </select>
+          </div>
+
+          <div className="filter-group">
+            <label className="filter-label" htmlFor="f-grade">Grade</label>
+            <select id="f-grade" value={seniority} onChange={(e) => update("seniority", e.target.value)}>
+              <option value="">All</option>
+              {GRADES.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+            </select>
+          </div>
+
+          <div className="filter-group">
             <label className="filter-label" htmlFor="f-country">Country</label>
             <select id="f-country" value={country} onChange={(e) => update("country", e.target.value)}>
-              <option value="">All</option>
-              <optgroup label="Benelux">
+              <option value="">All of Europe</option>
+              <optgroup label="Focus · Belgium &amp; Netherlands">
                 <option value="BE">🇧🇪 Belgium</option>
                 <option value="NL">🇳🇱 Netherlands</option>
-                <option value="LU">🇱🇺 Luxembourg</option>
               </optgroup>
-              <optgroup label="EU / UK · remote & contract">
-                <option value="GB">🇬🇧 United Kingdom</option>
-                <option value="DE">🇩🇪 Germany</option>
-                <option value="FR">🇫🇷 France</option>
-                <option value="ES">🇪🇸 Spain</option>
-                <option value="IT">🇮🇹 Italy</option>
-                <option value="AT">🇦🇹 Austria</option>
-                <option value="PL">🇵🇱 Poland</option>
+              <optgroup label="Rest of Europe">
+                {REST_COUNTRIES.map(([code, name]) => (
+                  <option key={code} value={code}>{COUNTRY_FLAGS[code]} {name}</option>
+                ))}
+              </optgroup>
+              <optgroup label="Remote · US &amp; Asia">
+                {REMOTE_COUNTRIES.map(([code, name]) => (
+                  <option key={code} value={code}>{COUNTRY_FLAGS[code]} {name} (remote)</option>
+                ))}
               </optgroup>
             </select>
           </div>
@@ -314,8 +412,9 @@ export default function JobFeed() {
           <div className="filter-group">
             <label className="filter-label" htmlFor="f-lang">Language</label>
             <select id="f-lang" value={langMatch} onChange={(e) => update("language_match", e.target.value)}>
-              <option value="">All</option>
-              <option value="good">✓ English OK</option>
+              <option value={LANG_DEFAULT}>✓ English-friendly</option>
+              <option value="all">Show all (incl. local language)</option>
+              <option value="good">English only</option>
               <option value="maybe">~ Maybe (preferred)</option>
               <option value="risk">! Risk (likely required)</option>
               <option value="blocker">✗ Blocker (required)</option>
@@ -339,6 +438,30 @@ export default function JobFeed() {
               <option value="hybrid">Hybrid</option>
               <option value="onsite">On-site</option>
             </select>
+          </div>
+
+          <div className="filter-group">
+            <label className="filter-label" htmlFor="f-salary">Min salary</label>
+            <input
+              id="f-salary"
+              type="number"
+              min="0"
+              step="5000"
+              placeholder="e.g. 50000"
+              value={minSalary}
+              onChange={(e) => update("min_salary", e.target.value)}
+            />
+          </div>
+
+          <div className="filter-group filter-group--checkbox">
+            <label className="filter-checkbox">
+              <input
+                type="checkbox"
+                checked={portfolio}
+                onChange={(e) => update("portfolio_required", e.target.checked ? "true" : "")}
+              />
+              📎 Portfolio required
+            </label>
           </div>
 
           {hasFilters && (
@@ -406,7 +529,7 @@ export default function JobFeed() {
         {result && (
           <div className="feed-stats">
             <strong>{result.total}</strong> jobs
-            {langMatch === "good" && " · English-friendly"}
+            {langMatch === LANG_DEFAULT && " · English-friendly"}
             {country && ` · ${country}`}
             {result.sort === "match" &&
               (result.capped ? " · ranked the 600 most recent by CV match" : " · sorted by CV match")}

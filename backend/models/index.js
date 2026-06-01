@@ -30,6 +30,11 @@ async function ensureColumns() {
   const qi = sequelize.getQueryInterface();
   const wanted = [
     { table: "jobs", column: "embedding", spec: { type: DataTypes.JSON, allowNull: true } },
+    { table: "jobs", column: "salary_min", spec: { type: DataTypes.FLOAT, allowNull: true } },
+    { table: "jobs", column: "salary_max", spec: { type: DataTypes.FLOAT, allowNull: true } },
+    { table: "jobs", column: "salary_currency", spec: { type: DataTypes.STRING(3), allowNull: true } },
+    { table: "job_classifications", column: "category", spec: { type: DataTypes.STRING(20), allowNull: true } },
+    { table: "job_classifications", column: "portfolio_required", spec: { type: DataTypes.BOOLEAN, allowNull: true } },
   ];
   for (const { table, column, spec } of wanted) {
     try {

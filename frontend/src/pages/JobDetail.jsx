@@ -6,9 +6,20 @@ import SourceCredit from "../components/SourceCredit.jsx";
 import { SkeletonFeed, ErrorState } from "../components/States.jsx";
 
 const COUNTRY_FLAGS = {
-  BE: "🇧🇪", NL: "🇳🇱", LU: "🇱🇺",
-  GB: "🇬🇧", DE: "🇩🇪", FR: "🇫🇷", ES: "🇪🇸", IT: "🇮🇹", AT: "🇦🇹", PL: "🇵🇱",
+  BE: "🇧🇪", NL: "🇳🇱", LU: "🇱🇺", GB: "🇬🇧", DE: "🇩🇪", FR: "🇫🇷", ES: "🇪🇸",
+  IT: "🇮🇹", AT: "🇦🇹", PL: "🇵🇱", PT: "🇵🇹", IE: "🇮🇪", SE: "🇸🇪", DK: "🇩🇰",
+  NO: "🇳🇴", FI: "🇫🇮", CH: "🇨🇭", CZ: "🇨🇿", RO: "🇷🇴", GR: "🇬🇷", HU: "🇭🇺",
+  US: "🇺🇸", IN: "🇮🇳", SG: "🇸🇬",
 };
+
+const CURRENCY = { EUR: "€", GBP: "£", PLN: "zł" };
+function formatSalary(min, max, currency) {
+  if (!min && !max) return null;
+  const sym = CURRENCY[currency] || "";
+  const k = (n) => (n >= 1000 ? `${Math.round(n / 1000)}k` : Math.round(n));
+  if (min && max) return `${sym}${k(min)}–${k(max)}`;
+  return `${sym}${k(min || max)}${min && !max ? "+" : ""}`;
+}
 
 function relativeTime(iso) {
   if (!iso) return "";
@@ -422,6 +433,9 @@ export default function JobDetail() {
             {job.location_raw && (
               <> · {COUNTRY_FLAGS[job.country] || ""} {job.location_raw}</>
             )}
+            {formatSalary(job.salary_min, job.salary_max, job.salary_currency) && (
+              <> · {formatSalary(job.salary_min, job.salary_max, job.salary_currency)}</>
+            )}
             {job.posted_at && <> · Posted {relativeTime(job.posted_at)}</>}
           </div>
         </div>
@@ -441,6 +455,7 @@ export default function JobDetail() {
           {c?.seniority && c.seniority !== "unknown" && (
             <span className="chip">{c.seniority}</span>
           )}
+          {c?.portfolio_required && <span className="chip">📎 portfolio required</span>}
           {c?.job_post_language && (
             <span className="chip chip--warn">posted in {c.job_post_language}</span>
           )}

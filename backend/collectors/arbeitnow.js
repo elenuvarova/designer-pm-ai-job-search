@@ -1,38 +1,29 @@
 import { stripHtml, dedupeHash, sleep } from "../nlp/normalize.js";
+import { isTargetRoleTitle } from "../nlp/role.js";
 
 const BASE = "https://www.arbeitnow.com/api/job-board-api";
-const MAX_PAGES = 5;
+const MAX_PAGES = 8;
 
-// Benelux location signals (case-insensitive)
-const BENELUX_PATTERNS = [
-  /netherlands/i, /nederland/i, /\bnl\b/i,
-  /belgium/i, /belgien/i, /belgique/i, /belgi[eë]/i,
-  /luxembourg/i, /luxemburg/i, /\blu\b/i,
-];
-
-// Role title/tag patterns to keep AI/ML/Data roles
-const ROLE_PATTERNS = [
-  /machine.?learning/i, /\bml\b/i, /data.?scien/i,
-  /\bai\b.*engineer/i, /artificial.?intel/i,
-  /mlops/i, /nlp\b/i, /computer.?vision/i,
-  /llm\b/i, /deep.?learn/i, /data.?engineer/i,
-];
-
-function isRelevantLocation(location, remote) {
-  if (remote) return true;
-  return BENELUX_PATTERNS.some((p) => p.test(location || ""));
-}
-
-function isRelevantRole(title, tags) {
-  const text = `${title} ${(tags || []).join(" ")}`;
-  return ROLE_PATTERNS.some((p) => p.test(text));
-}
-
+// Arbeitnow is an EU job board (DE-heavy). We now keep all of Europe, so the location
+// gate is dropped — every design/product role is kept, with best-effort country inference.
 function inferCountry(location) {
   if (!location) return null;
-  if (/netherlands|nederland/i.test(location)) return "NL";
-  if (/belgium|belgien|belgique|belgi/i.test(location)) return "BE";
-  if (/luxembourg/i.test(location)) return "LU";
+  const l = location.toLowerCase();
+  if (/netherlands|nederland|amsterdam|rotterdam|utrecht|eindhoven/.test(l)) return "NL";
+  if (/belgium|belgien|belgique|belgi|brussels|antwerp|ghent/.test(l)) return "BE";
+  if (/luxembourg/.test(l)) return "LU";
+  if (/germany|deutschland|berlin|munich|münchen|hamburg|cologne|köln|frankfurt/.test(l)) return "DE";
+  if (/france|paris|lyon|marseille|toulouse|bordeaux/.test(l)) return "FR";
+  if (/spain|españa|madrid|barcelona|valencia/.test(l)) return "ES";
+  if (/italy|italia|milan|rome|roma|turin/.test(l)) return "IT";
+  if (/austria|österreich|vienna|wien/.test(l)) return "AT";
+  if (/poland|polska|warsaw|kraków|krakow/.test(l)) return "PL";
+  if (/portugal|lisbon|lisboa|porto/.test(l)) return "PT";
+  if (/ireland|dublin/.test(l)) return "IE";
+  if (/sweden|stockholm/.test(l)) return "SE";
+  if (/denmark|copenhagen|københavn/.test(l)) return "DK";
+  if (/switzerland|schweiz|zurich|zürich|geneva/.test(l)) return "CH";
+  if (/united kingdom|england|london|manchester|\buk\b/.test(l)) return "GB";
   return null;
 }
 
@@ -53,8 +44,7 @@ export async function collectArbeitnow(source) {
       if (results.length === 0) break;
 
       for (const job of results) {
-        if (!isRelevantLocation(job.location, job.remote)) continue;
-        if (!isRelevantRole(job.title, job.tags)) continue;
+        if (!isTargetRoleTitle(job.title, job.tags)) continue;
 
         const country = inferCountry(job.location);
         jobs.push({

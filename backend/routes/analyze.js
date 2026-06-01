@@ -7,6 +7,7 @@ import { classifyRole } from "../nlp/role.js";
 import { classifySeniority } from "../nlp/seniority.js";
 import { classifyRemote } from "../nlp/remote.js";
 import { extractSkills } from "../nlp/skills.js";
+import { detectPortfolioRequired } from "../nlp/portfolio.js";
 import { stripHtml } from "../nlp/normalize.js";
 import { extractTerms, scoreJobText } from "../rag/cvMatch.js";
 
@@ -30,12 +31,14 @@ router.post("/", async (req, res) => {
 
     const classification = {
       job_post_language: detectLanguage(text),
+      category: role.category,
       role_family: role.role_family,
       role_confidence: role.confidence,
       seniority: classifySeniority(title, text).seniority,
       employment_type: employment.employment_type,
       employment_confidence: employment.confidence,
       remote_type: classifyRemote(title, text),
+      portfolio_required: detectPortfolioRequired(text),
       required_languages: langReq.required_languages,
       optional_languages: langReq.optional_languages,
       language_blocker: langReq.language_blocker,

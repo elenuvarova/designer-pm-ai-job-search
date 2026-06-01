@@ -124,11 +124,24 @@ async function upsertSource(def) {
   return source;
 }
 
+// Clamp string fields to their column limits so one over-long location/title from a
+// source never throws "value too long" and drops the row.
+const LIMITS = { title: 300, company: 200, country: 5, city: 100, location_raw: 300, source_job_id: 200, salary_currency: 3 };
+function clampFields(job) {
+  for (const [field, max] of Object.entries(LIMITS)) {
+    if (typeof job[field] === "string" && job[field].length > max) {
+      job[field] = job[field].slice(0, max);
+    }
+  }
+  return job;
+}
+
 async function saveJobs(rawJobs) {
   let created = 0;
   let skipped = 0;
 
-  for (const jobData of rawJobs) {
+  for (const raw of rawJobs) {
+    const jobData = clampFields(raw);
     try {
       // Cross-source dedup: dedupe_hash = sha1(title|company|country), so the same
       // posting surfaced by several sources (e.g. a company board + RemoteOK + HN)

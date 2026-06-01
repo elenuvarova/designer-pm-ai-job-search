@@ -1,19 +1,33 @@
 import { stripHtml, dedupeHash, sleep } from "../nlp/normalize.js";
+import { isTargetRoleTitle } from "../nlp/role.js";
 
 const BASE = "https://www.themuse.com/api/public/jobs";
 const RESULTS_PER_PAGE = 20;
 
-// The Muse location filters that map to Benelux
+// The Muse location filters across Europe — home region (BE/NL) first, then major hubs.
 const LOCATIONS = [
   { label: "Brussels, Belgium", country: "BE", city: "Brussels" },
   { label: "Antwerp, Belgium", country: "BE", city: "Antwerp" },
   { label: "Amsterdam, Netherlands", country: "NL", city: "Amsterdam" },
   { label: "Rotterdam, Netherlands", country: "NL", city: "Rotterdam" },
-  { label: "Luxembourg, Luxembourg", country: "LU", city: "Luxembourg City" },
+  { label: "London, United Kingdom", country: "GB", city: "London" },
+  { label: "Berlin, Germany", country: "DE", city: "Berlin" },
+  { label: "Munich, Germany", country: "DE", city: "Munich" },
+  { label: "Paris, France", country: "FR", city: "Paris" },
+  { label: "Madrid, Spain", country: "ES", city: "Madrid" },
+  { label: "Barcelona, Spain", country: "ES", city: "Barcelona" },
+  { label: "Milan, Italy", country: "IT", city: "Milan" },
+  { label: "Dublin, Ireland", country: "IE", city: "Dublin" },
+  { label: "Lisbon, Portugal", country: "PT", city: "Lisbon" },
+  { label: "Stockholm, Sweden", country: "SE", city: "Stockholm" },
+  { label: "Vienna, Austria", country: "AT", city: "Vienna" },
+  { label: "Warsaw, Poland", country: "PL", city: "Warsaw" },
+  // Global remote bucket — captures US/Asia remote roles (which are remote-only here).
+  { label: "Flexible / Remote", country: null, city: "Remote" },
 ];
 
-// Role categories available on The Muse
-const CATEGORIES = ["Data Science", "Software Engineer"];
+// Role categories available on The Muse that map to design & product.
+const CATEGORIES = ["Design and UX", "Creative", "Product Management"];
 
 export async function collectMuse(source) {
   const apiKey = process.env.THE_MUSE_API_KEY;
@@ -45,6 +59,7 @@ export async function collectMuse(source) {
 
         for (const job of results) {
           if (seen.has(job.id)) continue;
+          if (!isTargetRoleTitle(job.name)) continue; // "Creative" is broad — keep design/product only
           seen.add(job.id);
 
           jobs.push({

@@ -8,3 +8,5 @@ backend/public/
 .DS_Store
 *.sqlite
 *.sqlite-journal
+backend/backups/
+.claude/

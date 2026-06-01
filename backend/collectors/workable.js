@@ -1,6 +1,7 @@
 import { stripHtml, dedupeHash, sleep } from "../nlp/normalize.js";
+import { isTargetRoleTitle } from "../nlp/role.js";
 
-// Curated AI companies on Workable ATS (zero-auth widget endpoint).
+// Curated companies on Workable ATS (zero-auth widget endpoint).
 // GET https://apply.workable.com/api/v1/widget/accounts/{slug}?details=true
 // → { name, jobs: [...] }. Many Workable boards resolve with 0 live jobs, so
 // this list is short and high-signal; country comes from locations[].countryCode.
@@ -10,19 +11,10 @@ const COMPANIES = [
   { slug: "mlabs",       name: "MLabs",        country: null, city: null }, // Europe-remote
 ];
 
-const ROLE_PATTERNS = [
-  /machine.?learning/i, /\bml\b/i, /data.?scien/i,
-  /\bai\b/i, /artificial.?intel/i, /mlops/i, /\bnlp\b/i,
-  /computer.?vision/i, /\bllm\b/i, /deep.?learn/i,
-  /data.?engineer/i, /analytics/i, /data.?analys/i,
-  /generative.?ai/i, /foundation.?model/i,
+const OUR_COUNTRIES = [
+  "NL", "BE", "LU", "GB", "DE", "FR", "ES", "IT", "AT", "PL", "PT", "IE", "SE", "DK",
+  "NO", "FI", "CH", "CZ", "RO", "GR", "HU",
 ];
-
-const OUR_COUNTRIES = ["NL", "BE", "LU", "GB", "DE", "FR", "ES", "IT", "AT", "PL"];
-
-function isRelevant(title) {
-  return ROLE_PATTERNS.some((p) => p.test(title || ""));
-}
 
 function detectCountry(text) {
   const t = (text || "").toLowerCase();
@@ -55,7 +47,7 @@ export async function collectWorkable(source) {
         `https://apply.workable.com/api/v1/widget/accounts/${company.slug}?details=true`,
         {
           headers: {
-            "User-Agent": "benelux-job-scout/1.0 (personal research tool)",
+            "User-Agent": "design-product-job-scout/1.0 (personal research tool)",
             Accept: "application/json",
           },
         }
@@ -72,7 +64,7 @@ export async function collectWorkable(source) {
       let added = 0;
 
       for (const j of all) {
-        if (!isRelevant(j.title)) continue;
+        if (!isTargetRoleTitle(j.title)) continue;
 
         const country = pickCountry(j) || company.country;
         const locParts = [j.city, j.country].filter(Boolean);

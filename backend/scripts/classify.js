@@ -10,6 +10,7 @@ import { classifyRole } from "../nlp/role.js";
 import { classifySeniority } from "../nlp/seniority.js";
 import { classifyRemote } from "../nlp/remote.js";
 import { extractSkills } from "../nlp/skills.js";
+import { detectPortfolioRequired } from "../nlp/portfolio.js";
 import { adjudicateLanguage } from "../llm/provider.js";
 import { sleep } from "../nlp/normalize.js";
 
@@ -23,11 +24,20 @@ async function getUnclassified() {
   return all.filter((j) => !doneIds.has(j.id));
 }
 
-export async function runClassify() {
+// --all re-classifies every job (wipes existing classifications + skills first). Use after
+// the role/skill rules change so stale classifications are recomputed, not skipped.
+export async function runClassify({ all = false } = {}) {
   const startedAt = new Date();
-  console.log(`\n[classify] started ${startedAt.toISOString()}`);
+  console.log(`\n[classify] started ${startedAt.toISOString()}${all ? " (--all: full re-classify)" : ""}`);
 
   await syncModels();
+
+  if (all) {
+    await JobSkill.destroy({ where: {} });
+    await JobClassification.destroy({ where: {} });
+    console.log("[classify] cleared existing classifications + skills");
+  }
+
   const jobs = await getUnclassified();
   console.log(`[classify] ${jobs.length} unclassified jobs`);
 
@@ -59,9 +69,11 @@ export async function runClassify() {
       employment_type: employment.employment_type,
       employment_confidence: employment.confidence,
       remote_type: remoteType,
+      category: role.category,
       role_family: role.role_family,
       role_confidence: role.confidence,
       seniority: seniority.seniority,
+      portfolio_required: detectPortfolioRequired(desc),
       required_languages: langReq.required_languages,
       optional_languages: langReq.optional_languages,
       language_blocker: langReq.language_blocker,
@@ -133,7 +145,7 @@ export async function runClassify() {
 
 if (process.argv[1].endsWith("classify.js")) {
   try {
-    await runClassify();
+    await runClassify({ all: process.argv.includes("--all") });
     await sequelize.close();
     process.exit(0);
   } catch (err) {

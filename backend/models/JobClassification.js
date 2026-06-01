@@ -6,9 +6,12 @@ const JobClassification = sequelize.define(
   {
     id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
     job_id: { type: DataTypes.INTEGER, allowNull: false, unique: true },
+    // 'Design' | 'Product' | 'Other' — top-level grouping above role_family
+    category: { type: DataTypes.STRING(20) },
     role_family: { type: DataTypes.STRING(100) },
     role_confidence: { type: DataTypes.FLOAT },
     seniority: { type: DataTypes.STRING(50) },
+    portfolio_required: { type: DataTypes.BOOLEAN },
     employment_type: { type: DataTypes.STRING(50) },
     employment_confidence: { type: DataTypes.FLOAT },
     remote_type: { type: DataTypes.STRING(50) },
