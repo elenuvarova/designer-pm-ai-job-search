@@ -32,6 +32,15 @@ const EUROPE = [
   [/romania|bucharest|bucurești|cluj/i, "RO"],
   [/greece|athens|thessaloniki/i, "GR"],
   [/hungary|budapest/i, "HU"],
+  [/estonia|tallinn|tartu/i, "EE"],
+  [/latvia|riga|rīga/i, "LV"],
+  [/lithuania|vilnius|kaunas/i, "LT"],
+  [/bulgaria|sofia|sofiya/i, "BG"],
+  [/croatia|zagreb|split/i, "HR"],
+  [/slovakia|bratislava/i, "SK"],
+  [/slovenia|ljubljana/i, "SI"],
+  [/iceland|reykjav/i, "IS"],
+  [/serbia|belgrade|beograd|novi sad/i, "RS"],
 ];
 
 function europeanCountry(locName) {

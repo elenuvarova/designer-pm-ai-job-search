@@ -16,6 +16,9 @@ const FAMILIES = [
       // local variants
       /\bproduktdesigner(in)?\b/i, /\bdesigner\s*ux\b/i, /\bdiseñador[ae]?\s*(ux|de\s*producto)?\b/i,
       /\bdesigner\s*(de\s*)?produit\b/i, /\bproductontwerper\b/i,
+      // Russian
+      /продуктов[а-яё]*\s+дизайнер/i, /ux.?дизайнер/i, /ui.?дизайнер/i, /веб.?дизайнер/i,
+      /интерфейсн[а-яё]*\s+дизайнер/i, /дизайнер\s+интерфейс/i,
     ],
   },
   {
@@ -24,6 +27,8 @@ const FAMILIES = [
     patterns: [
       /\bux\s*research(er)?\b/i, /\buser\s*research(er)?\b/i, /\bdesign\s*research(er)?\b/i,
       /\buser\s*experience\s*research(er)?\b/i, /\bnutzerforsch/i,
+      // Russian
+      /ux.?исследователь/i, /продуктов[а-яё]*\s+исследователь/i, /пользовательск[а-яё]*\s+исследован/i,
     ],
   },
   {
@@ -33,6 +38,8 @@ const FAMILIES = [
       /\bgraphic\s*designer\b/i, /\bvisual\s*designer\b/i, /\bgrafik(er|designer)(in)?\b/i,
       /\bdiseñador[ae]?\s*gráfic[oa]\b/i, /\bgraphiste\b/i, /\bdesigner\s*gráfic[oa]\b/i,
       /\bgrafisch\s*ontwerper\b/i, /\bdigital\s*design(er)?\b.*\bvisual/i,
+      // Russian
+      /графическ[а-яё]*\s+дизайнер/i, /визуальн[а-яё]*\s+дизайнер/i, /дизайнер.?график/i,
     ],
   },
   {
@@ -41,6 +48,8 @@ const FAMILIES = [
     patterns: [
       /\bbrand\s*designer\b/i, /\bart\s*director\b/i, /\bbranding\s*designer\b/i,
       /\bdirecteur\s*artistique\b/i, /\bdirector[ae]?\s*de\s*arte\b/i, /\bcreative\s*director\b/i,
+      // Russian
+      /бренд.?дизайнер/i, /арт.?директор/i, /креативн[а-яё]*\s+директор/i,
     ],
   },
   {
@@ -49,6 +58,8 @@ const FAMILIES = [
     patterns: [
       /\bmotion\s*(designer|graphics)\b/i, /\b3d\s*(designer|artist)\b/i, /\banimator\b/i,
       /\billustrator\b/i, /\billustrateur\b/i, /\bilustrador[ae]?\b/i, /\bmotion\s*artist\b/i,
+      // Russian
+      /моушн.?дизайнер/i, /иллюстратор/i, /3d.?дизайнер/i, /аниматор/i,
     ],
   },
   {
@@ -74,6 +85,8 @@ const FAMILIES = [
       /\bhead\s*of\s*design\b/i, /\bdesign\s*director\b/i, /\bdirector\s*of\s*design\b/i,
       /\bdesign\s*lead\b/i, /\blead\s*(product\s*|ux\s*|ui\s*)?designer\b/i, /\bdesign\s*manager\b/i,
       /\bvp\s*of\s*design\b/i, /\bprincipal\s*designer\b/i, /\bstaff\s*designer\b/i,
+      // Russian
+      /руководитель\s+(отдела\s+)?дизайна/i, /директор\s+по\s+дизайну/i, /дизайн.?лид/i, /ведущий\s+дизайнер/i,
     ],
   },
 
@@ -85,6 +98,8 @@ const FAMILIES = [
       /\bhead\s*of\s*product\b/i, /\bdirector\s*of\s*product\b/i, /\bproduct\s*director\b/i,
       /\bvp\s*of\s*product\b/i, /\bgroup\s*product\s*manager\b/i, /\bgroup\s*pm\b/i,
       /\bchief\s*product\s*officer\b/i, /\bcpo\b/i, /\bproduct\s*lead\b/i,
+      // Russian
+      /руководитель\s+продукта/i, /директор\s+по\s+продукту/i, /глава\s+продукта/i,
     ],
   },
   {
@@ -101,6 +116,8 @@ const FAMILIES = [
     patterns: [
       /\bproduct\s*owner\b/i, /\bpo\b\s*\(?product\s*owner\)?/i, /\bproprietario\s*di\s*prodotto\b/i,
       /\bproduct\s*eigenaar\b/i,
+      // Russian
+      /владелец\s+продукта/i, /продакт.?оунер/i, /продукт.?оунер/i,
     ],
   },
   {
@@ -112,6 +129,8 @@ const FAMILIES = [
       // local variants
       /\bproduktmanager(in)?\b/i, /\bchef\s*de\s*produit\b/i, /\bgestor[ae]?\s*de\s*producto\b/i,
       /\bresponsabile\s*di\s*prodotto\b/i, /\bproductmanager\b/i,
+      // Russian
+      /продакт.?менеджер/i, /продукт.?менеджер/i, /продуктов[а-яё]*\s+менеджер/i, /менеджер\s+продукта/i,
     ],
   },
 ];
@@ -130,6 +149,9 @@ const TARGET_TITLE_RE = [
   // local-language stems
   /\bdesigner?\b/i, /\bgrafik/i, /\bgraphiste\b/i, /\bdiseñ/i, /\bontwerper\b/i, /\bproduktmanager/i,
   /\bchef\s*de\s*produit\b/i, /\bgestor[ae]?\s*de\s*producto\b/i,
+  // Russian / Cyrillic stems (no \b — it is ASCII-only and breaks on Cyrillic)
+  /дизайн/i, /продакт/i, /продукт.?менеджер/i, /продуктов/i, /графическ/i, /визуальн/i,
+  /иллюстратор/i, /арт.?директор/i, /моушн/i, /владелец\s+продукта/i, /исследователь/i,
 ];
 
 // Negative guard: titles that contain a target keyword but clearly are not our roles.
