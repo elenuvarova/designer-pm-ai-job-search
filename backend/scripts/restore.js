@@ -44,6 +44,18 @@ export async function runRestore(fileArg, { confirm = false } = {}) {
     await Model.bulkCreate(rows, { ignoreDuplicates: true });
     console.log(`[restore] loaded ${name}: ${rows.length}`);
   }
+  // bulkCreate with explicit ids does NOT advance Postgres sequences — fix them, or the
+  // next plain insert collides on id. (No-op on SQLite, which has no such sequences.)
+  if (sequelize.getDialect() === "postgres") {
+    for (const [, Model] of ORDER) {
+      const table = Model.getTableName();
+      await sequelize.query(
+        `SELECT setval(pg_get_serial_sequence($1,'id'), GREATEST((SELECT COALESCE(MAX(id),1) FROM "${table}"),1))`,
+        { bind: [table] }
+      );
+    }
+    console.log("[restore] sequences synced");
+  }
   console.log("[restore] done");
   return { loaded: true };
 }
