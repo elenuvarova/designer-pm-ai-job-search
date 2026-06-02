@@ -40,7 +40,6 @@ const EUROPE = [
   [/slovakia|bratislava/i, "SK"],
   [/slovenia|ljubljana/i, "SI"],
   [/iceland|reykjav/i, "IS"],
-  [/serbia|belgrade|beograd|novi sad/i, "RS"],
 ];
 
 function europeanCountry(locName) {

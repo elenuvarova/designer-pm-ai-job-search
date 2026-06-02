@@ -10,7 +10,7 @@ const COUNTRY_FLAGS = {
   BE: "🇧🇪", NL: "🇳🇱", LU: "🇱🇺", GB: "🇬🇧", DE: "🇩🇪", FR: "🇫🇷", ES: "🇪🇸",
   IT: "🇮🇹", AT: "🇦🇹", PL: "🇵🇱", PT: "🇵🇹", IE: "🇮🇪", SE: "🇸🇪", DK: "🇩🇰",
   NO: "🇳🇴", FI: "🇫🇮", CH: "🇨🇭", CZ: "🇨🇿", RO: "🇷🇴", GR: "🇬🇷", HU: "🇭🇺",
-  EE: "🇪🇪", LV: "🇱🇻", LT: "🇱🇹", BG: "🇧🇬", HR: "🇭🇷", SK: "🇸🇰", SI: "🇸🇮", IS: "🇮🇸", RS: "🇷🇸",
+  EE: "🇪🇪", LV: "🇱🇻", LT: "🇱🇹", BG: "🇧🇬", HR: "🇭🇷", SK: "🇸🇰", SI: "🇸🇮", IS: "🇮🇸",
   US: "🇺🇸", IN: "🇮🇳", SG: "🇸🇬",
 };
 
@@ -26,7 +26,6 @@ const REST_COUNTRIES = [
   ["RO", "Romania"], ["GR", "Greece"], ["HU", "Hungary"],
   ["EE", "Estonia"], ["LV", "Latvia"], ["LT", "Lithuania"],
   ["BG", "Bulgaria"], ["HR", "Croatia"], ["SK", "Slovakia"], ["SI", "Slovenia"], ["IS", "Iceland"],
-  ["RS", "Serbia"],
 ];
 
 // Disciplines (role_family) grouped by category — mirrors backend/nlp/role.js.
