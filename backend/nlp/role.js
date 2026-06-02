@@ -19,6 +19,8 @@ const FAMILIES = [
       // Russian
       /продуктов[а-яё]*\s+дизайнер/i, /ux.?дизайнер/i, /ui.?дизайнер/i, /веб.?дизайнер/i,
       /интерфейсн[а-яё]*\s+дизайнер/i, /дизайнер\s+интерфейс/i,
+      // Baltic (Estonian/Latvian/Lithuanian) — default design titles to Product Design
+      /\b(toote|produkto|produkta)?\s*disain(er|eris|ers)?\b/i, /\bdizainer(is|s)?\b/i,
     ],
   },
   {
@@ -152,6 +154,8 @@ const TARGET_TITLE_RE = [
   // Russian / Cyrillic stems (no \b — it is ASCII-only and breaks on Cyrillic)
   /дизайн/i, /продакт/i, /продукт.?менеджер/i, /продуктов/i, /графическ/i, /визуальн/i,
   /иллюстратор/i, /арт.?директор/i, /моушн/i, /владелец\s+продукта/i, /исследователь/i,
+  // Baltic design stems (Estonian "disainer", Latvian/Lithuanian "dizaineris/dizainers")
+  /disain/i, /dizain/i,
 ];
 
 // Negative guard: titles that contain a target keyword but clearly are not our roles.

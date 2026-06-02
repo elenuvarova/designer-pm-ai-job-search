@@ -10,10 +10,15 @@ const DETAIL_URL = "https://europa.eu/eures/portal/jv-se/jv-details";
 
 // Two tiers: prioritise the home region, then sweep the rest of Europe. Each tier is a
 // separate query so BE/NL volume is never crowded out by the larger markets.
-const PRIORITY_CODES = ["be", "nl"];
-const REST_CODES = [
-  "lu", "de", "fr", "es", "it", "at", "pl", "pt", "ie", "se", "dk", "fi",
-  "cz", "ro", "gr", "hu", "bg", "hr", "sk", "si", "ee", "lv", "lt", "is", "no", "ch",
+// Geographic tiers — each searched separately so small markets (Baltics, Nordics,
+// Portugal…) get their own BEST_MATCH top-100 instead of being crowded out by DE/FR/ES
+// when the whole continent is queried at once.
+const TIERS = [
+  ["home", ["be", "nl"]],
+  ["western", ["lu", "de", "fr", "es", "it", "at", "pt", "ie", "ch"]],
+  ["nordics", ["se", "dk", "fi", "no", "is"]],
+  ["central-east", ["pl", "cz", "sk", "hu", "ro", "bg", "hr", "si", "gr"]],
+  ["baltics", ["ee", "lv", "lt"]],
 ];
 
 // One pass per keyword. `EVERYWHERE` matches description text too, so each pass is broad
@@ -74,7 +79,7 @@ export async function collectEures(source) {
   const jobs = [];
   const seen = new Set(); // dedupe by EURES id across keyword/tier passes
 
-  for (const [tierName, locationCodes] of [["home", PRIORITY_CODES], ["rest-of-europe", REST_CODES]]) {
+  for (const [tierName, locationCodes] of TIERS) {
     for (const keyword of KEYWORDS) {
       let kept = 0;
 
