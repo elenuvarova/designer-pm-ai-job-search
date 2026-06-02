@@ -38,6 +38,7 @@ jobs:
           ADZUNA_APP_KEY: ${{ secrets.ADZUNA_APP_KEY }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          THE_MUSE_API_KEY: ${{ secrets.THE_MUSE_API_KEY }}
 
       # Commit a timestamp so this workflow is never auto-disabled after 60 days idle
       - name: Stamp last run
