@@ -20,6 +20,7 @@ const COMPANIES = [
   { slug: "mistral",        name: "Mistral AI",     country: null, city: null }, // incl. Luxembourg + Amsterdam roles
   { slug: "veepee",         name: "Veepee",         country: null, city: null },
   { slug: "pnlfin",         name: "Finom",          country: "NL", city: "Amsterdam" }, // EU-hosted Lever board (api.eu.lever.co)
+  { slug: "pipedrive",      name: "Pipedrive",      country: "EE", city: "Tallinn" }, // Estonian; design/product roles (some remote)
 ];
 
 function parseCountry(location, fallback) {

@@ -53,6 +53,9 @@ const COMPANIES = [
   { token: "gocardless",   name: "GoCardless",   country: null, city: null },         // London/Lisbon/Riga Data
   { token: "raisin",       name: "Raisin",       country: null, city: null },         // Berlin AI
   { token: "solarisbank",  name: "Solaris",      country: null, city: null },         // Berlin AI
+  // Baltic-HQ tech — surfaces design/product roles in Tallinn / Riga / Vilnius
+  { token: "veriff",       name: "Veriff",       country: "EE", city: "Tallinn" },
+  { token: "lokalise",     name: "Lokalise",     country: "LV", city: "Riga" },
 ];
 
 function parseCountry(locationName, fallback) {
