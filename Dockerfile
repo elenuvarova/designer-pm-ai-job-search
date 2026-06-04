@@ -10,7 +10,12 @@ RUN npm run build
 FROM node:20-alpine AS backend-deps
 WORKDIR /app/backend
 COPY backend/package*.json ./
-RUN npm ci --omit=dev
+# --omit=optional drops sqlite3 (an optionalDependency, used only for LOCAL
+# SQLite dev) and its native build-toolchain chain (node-gyp -> cacache ->
+# node-tar) that npm audit flags. Prod runs Postgres via the regular `pg`
+# dependency (db.js takes the postgres branch from DATABASE_URL), so the image
+# does not need sqlite3.
+RUN npm ci --omit=dev --omit=optional
 
 # Stage 3 — runtime
 # No build ARG/ENV for API keys here: ADZUNA_*/GEMINI_API_KEY/GROQ_API_KEY/

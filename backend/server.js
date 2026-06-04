@@ -6,6 +6,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 import { sequelize, dbKind } from "./db.js";
 import { syncModels } from "./models/index.js";
+import { basicAuth } from "./middleware/basicAuth.js";
 import jobsRouter from "./routes/jobs.js";
 import collectRouter from "./routes/collect.js";
 import classifyRouter from "./routes/classify.js";
@@ -46,6 +47,14 @@ app.use(
   })
 );
 app.use(compression());
+
+// HTTP Basic Auth gate. Mounted early so it protects EVERYTHING (the SPA and all
+// /api/* routes) except /api/health, which it exempts so the container
+// HEALTHCHECK keeps passing. No-op when BASIC_AUTH_USER/BASIC_AUTH_PASSWORD are
+// unset. Runs before the body parser so unauthenticated requests are rejected
+// without parsing their payload.
+app.use(basicAuth());
+
 app.use(express.json({ limit: "1mb" })); // room for pasted JDs / chat payloads
 
 app.get("/api/health", async (req, res) => {
