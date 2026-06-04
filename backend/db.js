@@ -9,15 +9,16 @@ const url = process.env.DATABASE_URL || "";
 
 if (url.startsWith("postgres://") || url.startsWith("postgresql://")) {
   dbKind = "postgres";
+  // Enable SSL only when the connection string asks for it (e.g. Neon's
+  // ?sslmode=require). The internal Coolify Postgres does NOT support SSL,
+  // so forcing it there makes the connection fail and the app crash-loop.
+  const sslOptions = /sslmode=require/i.test(url)
+    ? { dialectOptions: { ssl: { require: true, rejectUnauthorized: false } } }
+    : {};
   sequelize = new Sequelize(url, {
     dialect: "postgres",
     logging: false,
-    dialectOptions: {
-      ssl: {
-        require: true,
-        rejectUnauthorized: false,
-      },
-    },
+    ...sslOptions,
   });
 } else {
   dbKind = "sqlite";
