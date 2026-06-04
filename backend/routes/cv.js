@@ -20,7 +20,8 @@ router.get("/", async (_req, res) => {
     const doc = await CvDocument.findOne({ order: [["created_at", "DESC"]] });
     res.json(doc || null);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error("[cv] get current failed:", err);
+    res.status(500).json({ error: "internal error" });
   }
 });
 
@@ -36,8 +37,8 @@ router.post("/upload", upload.single("cv"), async (req, res) => {
     });
     res.json(result);
   } catch (err) {
-    console.error("CV upload error:", err.message);
-    res.status(500).json({ error: err.message });
+    console.error("[cv] upload failed:", err);
+    res.status(500).json({ error: "internal error" });
   }
 });
 
@@ -70,7 +71,8 @@ router.get("/scores", async (req, res) => {
 
     res.json({ scores });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error("[cv] scores failed:", err);
+    res.status(500).json({ error: "internal error" });
   }
 });
 
@@ -101,7 +103,8 @@ router.get("/skill-gap/:jobId", async (req, res) => {
 
     res.json({ has_cv: true, job_skills: jobSkills, matched, missing });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error("[cv] skill-gap failed:", err);
+    res.status(500).json({ error: "internal error" });
   }
 });
 
@@ -111,7 +114,8 @@ router.delete("/:id", async (req, res) => {
     await CvDocument.destroy({ where: { id: req.params.id } });
     res.json({ ok: true });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error("[cv] delete failed:", err);
+    res.status(500).json({ error: "internal error" });
   }
 });
 

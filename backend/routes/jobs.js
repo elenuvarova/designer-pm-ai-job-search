@@ -177,7 +177,8 @@ router.get("/", async (req, res) => {
       jobs: rows,
     });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error("[jobs] list failed:", err);
+    res.status(500).json({ error: "internal error" });
   }
 });
 
@@ -205,7 +206,8 @@ router.get("/:id/similar", async (req, res) => {
     const byId = Object.fromEntries(rows.map((r) => [r.id, r]));
     res.json({ jobs: ids.map((id) => byId[id]).filter(Boolean) });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error("[jobs] similar failed:", err);
+    res.status(500).json({ error: "internal error" });
   }
 });
 
@@ -222,7 +224,8 @@ router.get("/:id", async (req, res) => {
     if (!job) return res.status(404).json({ error: "Job not found" });
     res.json(job);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error("[jobs] detail failed:", err);
+    res.status(500).json({ error: "internal error" });
   }
 });
 

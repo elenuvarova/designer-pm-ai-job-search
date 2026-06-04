@@ -32,7 +32,8 @@ router.get("/skills", async (req, res) => {
 
     res.json({ skills: result, total_jobs: total });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error("[analytics] skills failed:", err);
+    res.status(500).json({ error: "internal error" });
   }
 });
 

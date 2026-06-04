@@ -45,7 +45,8 @@ router.post("/semantic", async (req, res) => {
 
     res.json({ jobs });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error("[search] semantic failed:", err);
+    res.status(500).json({ error: "internal error" });
   }
 });
 
@@ -112,7 +113,8 @@ router.post("/chat", async (req, res) => {
 
     res.json({ answer, jobs: refs });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error("[search] chat failed:", err);
+    res.status(500).json({ error: "internal error" });
   }
 });
 

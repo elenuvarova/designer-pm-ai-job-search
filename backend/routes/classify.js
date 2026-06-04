@@ -15,7 +15,8 @@ router.post("/run", async (req, res) => {
   try {
     lastResult = await runClassify();
   } catch (err) {
-    lastResult = { error: err.message };
+    console.error("[classify] run failed:", err);
+    lastResult = { error: "internal error" };
   } finally {
     running = false;
   }

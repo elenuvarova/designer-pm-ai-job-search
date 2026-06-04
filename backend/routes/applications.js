@@ -25,7 +25,8 @@ router.get("/", async (req, res) => {
     });
     res.json(apps);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error("[applications] list failed:", err);
+    res.status(500).json({ error: "internal error" });
   }
 });
 
@@ -41,7 +42,8 @@ router.post("/", async (req, res) => {
     });
     res.status(created ? 201 : 200).json({ ...app.toJSON(), created });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error("[applications] create failed:", err);
+    res.status(500).json({ error: "internal error" });
   }
 });
 
@@ -63,7 +65,8 @@ router.patch("/:id", async (req, res) => {
     });
     res.json(app);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error("[applications] update failed:", err);
+    res.status(500).json({ error: "internal error" });
   }
 });
 
@@ -73,7 +76,8 @@ router.delete("/:id", async (req, res) => {
     await Application.destroy({ where: { id: req.params.id } });
     res.json({ ok: true });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error("[applications] delete failed:", err);
+    res.status(500).json({ error: "internal error" });
   }
 });
 

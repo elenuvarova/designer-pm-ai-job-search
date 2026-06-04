@@ -64,7 +64,8 @@ router.post("/", async (req, res) => {
 
     res.json({ classification, skills: jobSkills, cv });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error("[analyze] failed:", err);
+    res.status(500).json({ error: "internal error" });
   }
 });
 

@@ -24,10 +24,10 @@ Category (Design / Product) → Discipline · Grade · Country (Focus BE/NL · R
 
 - **Frontend:** React 18 + Vite 5 (JavaScript), React Router
 - **Backend:** Node.js + Express, ES modules, Sequelize ORM
-- **Database:** **Neon** Postgres in production, SQLite in local dev (dialect chosen automatically from `DATABASE_URL`)
+- **Database:** Postgres in production, SQLite in local dev (dialect chosen automatically from `DATABASE_URL`)
 - **Scheduled collector:** **GitHub Actions** cron (public repo → free unlimited minutes) running `backend/scripts/collect.js`
 - **AI:** Gemini 2.5 Flash (primary) + Groq Llama 3.3 70B (fallback); embeddings via Gemini `gemini-embedding-001`
-- **Web service:** Render free web service (serves the API + built React app)
+- **Web service:** single Node container (`node server.js`) serving both the API and the built React app on port 3001, deployed on Coolify (no nginx)
 
 ## Job sources
 
@@ -90,21 +90,25 @@ Copy `.env.example` and fill in (all free to obtain):
 
 | Var | Used for |
 |---|---|
-| `DATABASE_URL` | Neon connection string (omit locally → SQLite) |
+| `DATABASE_URL` | Postgres connection string (omit locally → SQLite). Coolify-internal Postgres needs no SSL flag; an external SSL Postgres requires `?sslmode=require` |
 | `ADZUNA_APP_ID`, `ADZUNA_APP_KEY` | Adzuna source |
 | `THE_MUSE_API_KEY` | The Muse source |
 | `GEMINI_API_KEY` | classification tail, CV embeddings, RAG |
 | `GROQ_API_KEY` | LLM fallback |
 
-Secrets live in `.env` (gitignored) locally and in **GitHub Secrets** for the cron — never in the repo.
+Secrets live in `.env` (gitignored) locally, in the **Coolify environment variables** for the deployed app, and in **GitHub Secrets** for the cron — never in the repo. They are read at runtime from `process.env` and are never baked into the Docker image.
 
 ## Deploy
 
-- **Web service:** Render free web service via `render.yaml` (Docker). Set `DATABASE_URL` (Neon) as an env var in the dashboard.
-- **Database:** create a free Neon project, paste its connection string into Render env + GitHub Secrets. Neon's free tier never expires.
-- **Collector:** `.github/workflows/collect.yml` runs daily on GitHub Actions and writes to Neon.
+Deployed on **Coolify** as a single Docker container that runs `node server.js` and serves both the `/api` backend and the built React SPA on port **3001** (no nginx).
 
-**Free-tier note:** the Render web service sleeps after ~15 min idle (~60 s cold start) — fine for a personal tool, since the heavy collection runs in Actions.
+- **Build:** Coolify build pack = **Dockerfile** (multi-stage: build the Vite frontend, install backend prod deps, copy the built SPA into `backend/public`).
+- **Container:** exposes port 3001. The image ships a `HEALTHCHECK` that probes `/api/health`, so Coolify gets container health for free — no separate health-check path config needed.
+- **Secrets:** set `DATABASE_URL`, `ADZUNA_APP_ID`, `ADZUNA_APP_KEY`, `GEMINI_API_KEY`, `GROQ_API_KEY`, and `THE_MUSE_API_KEY` as **Coolify environment variables** (Configuration → Environment Variables). They are read at runtime from `process.env`, never build args, so nothing is baked into the image.
+- **Database:** point `DATABASE_URL` at a Postgres instance (Coolify-managed Postgres needs no SSL flag; an external SSL Postgres needs `?sslmode=require`). Use the same connection string in GitHub Secrets so the collector writes to the same DB.
+- **Collector:** `.github/workflows/collect.yml` runs daily on GitHub Actions and writes to the same Postgres.
+
+Deploys are automatic on git push (Coolify auto-deploy).
 
 ## API (high level)
 

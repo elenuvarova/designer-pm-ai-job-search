@@ -48,8 +48,8 @@ router.post("/:jobId/company-brief", async (req, res) => {
     briefCache.set(key, brief);
     res.json({ result: brief });
   } catch (err) {
-    console.error("company-brief error:", err.message);
-    res.status(500).json({ error: err.message });
+    console.error("[rag] company-brief error:", err);
+    res.status(500).json({ error: "internal error" });
   }
 });
 
@@ -113,8 +113,8 @@ router.post("/:jobId/apply-kit", async (req, res) => {
 
     res.json({ result: md });
   } catch (err) {
-    console.error("apply-kit error:", err.message);
-    res.status(500).json({ error: err.message });
+    console.error("[rag] apply-kit error:", err);
+    res.status(500).json({ error: "internal error" });
   }
 });
 
@@ -153,8 +153,8 @@ router.post("/:jobId/:action", async (req, res) => {
 
     res.json({ action, result });
   } catch (err) {
-    console.error(`RAG ${action} error:`, err.message);
-    res.status(500).json({ error: err.message });
+    console.error(`[rag] ${action} error:`, err);
+    res.status(500).json({ error: "internal error" });
   }
 });
 

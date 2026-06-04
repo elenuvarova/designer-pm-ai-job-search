@@ -18,7 +18,8 @@ router.post("/run", async (req, res) => {
   try {
     lastResult = await runCollect();
   } catch (err) {
-    lastResult = { error: err.message };
+    console.error("[collect] run failed:", err);
+    lastResult = { error: "internal error" };
   } finally {
     running = false;
   }
