@@ -193,11 +193,11 @@ export default function JobFeed() {
   const sortParam  = searchParams.get("sort");
   const strongOnly = searchParams.get("min_match") === "25";
   const smart      = searchParams.get("smart") === "1";
-  // Once a CV is uploaded, rank by match by default; before that (or if the user
-  // pins "newest"), sort by recency.
+  // CV-independent sorts are always available; "match" needs a CV. With no
+  // explicit choice, default to match when a CV is present, else newest.
+  const VALID_SORTS = ["newest", "oldest", "company", "title", "match"];
   const sort =
-    sortParam === "match" ? "match"
-    : sortParam === "newest" ? "newest"
+    VALID_SORTS.includes(sortParam) ? sortParam
     : hasCv ? "match"
     : "newest";
 
@@ -290,10 +290,8 @@ export default function JobFeed() {
     if (portfolio)  params.set("portfolio_required", "true");
     if (q)          params.set("q", q);
     params.set("home_first", "1"); // surface BE/NL first (ignored when a country is picked)
-    if (sort === "match") {
-      params.set("sort", "match");
-      if (strongOnly) params.set("min_match", "25");
-    }
+    if (sort !== "newest") params.set("sort", sort);
+    if (sort === "match" && strongOnly) params.set("min_match", "25");
     params.set("page", page);
     params.set("limit", "25");
 
@@ -499,22 +497,18 @@ export default function JobFeed() {
         {!smart && (
           <div className="sort-bar">
             <span className="sort-bar-label">Sort</span>
-            <button
-              className={`sort-pill ${sort !== "match" ? "is-active" : ""}`}
-              onClick={() => setSort("newest")}
-              aria-pressed={sort !== "match"}
+            <select
+              className="sort-select"
+              value={sort}
+              onChange={(e) => setSort(e.target.value)}
+              aria-label="Sort jobs"
             >
-              Newest
-            </button>
-            {hasCv && (
-              <button
-                className={`sort-pill ${sort === "match" ? "is-active" : ""}`}
-                onClick={() => setSort("match")}
-                aria-pressed={sort === "match"}
-              >
-                ★ Best match
-              </button>
-            )}
+              <option value="newest">Newest</option>
+              <option value="oldest">Oldest</option>
+              <option value="company">Company A–Z</option>
+              <option value="title">Title A–Z</option>
+              {hasCv && <option value="match">★ Best match</option>}
+            </select>
             {hasCv && sort === "match" && (
               <label className="sort-strong">
                 <input

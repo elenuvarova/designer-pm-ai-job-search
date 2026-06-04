@@ -14,6 +14,28 @@ const router = Router();
 // Works on both Postgres and SQLite without the NULLS LAST keyword.
 const RECENCY_ORDER = [[sequelize.literal("posted_at IS NULL"), "ASC"], ["posted_at", "DESC"]];
 
+// Oldest-dated first, but undated jobs still go LAST (mirror of RECENCY_ORDER).
+const OLDEST_ORDER = [[sequelize.literal("posted_at IS NULL"), "ASC"], ["posted_at", "ASC"]];
+
+// Company A–Z with NULL/empty company LAST. The IS NULL OR = '' literal pushes
+// blanks to the bottom on both Postgres and SQLite without NULLS LAST.
+const COMPANY_ORDER = [
+  [sequelize.literal("company IS NULL OR company = ''"), "ASC"],
+  ["company", "ASC"],
+];
+
+// Title A–Z (title is NOT NULL on the model, so no NULL handling needed).
+const TITLE_ORDER = [["title", "ASC"]];
+
+// Whitelist of CV-independent sorts → server-side Sequelize order clauses.
+// User input is mapped through this map, never interpolated into SQL.
+const SORTS = {
+  newest: RECENCY_ORDER,
+  oldest: OLDEST_ORDER,
+  company: COMPANY_ORDER,
+  title: TITLE_ORDER,
+};
+
 // BE/NL are the prioritised home region — surface them first, then by recency.
 // CASE → 1/0 (not a raw boolean) so NULL countries (remote jobs) sort as 0, not via
 // Postgres's DESC-NULLS-FIRST which would otherwise float remote jobs to the top.
@@ -76,9 +98,16 @@ router.get("/", async (req, res) => {
 
     const hasClassFilter = Object.keys(classWhere).length > 0;
 
+    // Resolve the requested CV-independent sort against the whitelist (default newest).
+    const sortKey = SORTS[req.query.sort] ? req.query.sort : "newest";
+    const baseOrder = SORTS[sortKey];
+
     // Surface BE/NL first unless the user picked a specific country (then it's moot).
+    // Home-region-first only applies to the date sorts; for company/title it would
+    // override the alphabetical intent, so keep those purely alphabetical.
     const homeFirst = req.query.home_first === "1" && !req.query.country;
-    const order = homeFirst ? [HOME_FIRST, ...RECENCY_ORDER] : RECENCY_ORDER;
+    const homeApplies = homeFirst && (sortKey === "newest" || sortKey === "oldest");
+    const order = homeApplies ? [HOME_FIRST, ...baseOrder] : baseOrder;
 
     const sourceInclude = (attrs) => ({ model: Source, where: sourceWhere, attributes: attrs });
     const classInclude = (attrs) => ({

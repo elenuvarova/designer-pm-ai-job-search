@@ -298,6 +298,17 @@ button { cursor: pointer; font: inherit; }
   border-color: var(--accent);
   color: #fff;
 }
+.sort-select {
+  font-size: var(--text-sm);
+  padding: 4px var(--space-3);
+  border-radius: var(--radius-md, 8px);
+  border: 1px solid var(--border);
+  background: var(--bg-input);
+  color: var(--text-1);
+  cursor: pointer;
+}
+.sort-select:hover { border-color: var(--accent); }
+.sort-select:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 .sort-strong {
   display: inline-flex;
   align-items: center;

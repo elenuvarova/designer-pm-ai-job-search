@@ -19,7 +19,7 @@
     "pg-hstore": "^2.3.4",
     "sequelize": "^6.37.3"
   },
-  "optionalDependencies": {
+  "devDependencies": {
     "sqlite3": "^5.1.7"
   }
 }
