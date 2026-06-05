@@ -53,6 +53,19 @@ const CLASS_ATTRS = [
 // keeps the in-memory scoring bounded; older jobs are rarely the top match anyway.
 const MAX_SCORED = 600;
 
+// GET /api/jobs/new-today — count of jobs first collected since 00:00 UTC today.
+router.get("/new-today", async (req, res) => {
+  try {
+    const start = new Date();
+    start.setUTCHours(0, 0, 0, 0);
+    const count = await Job.count({ where: { createdAt: { [Op.gte]: start } } });
+    res.json({ new_today: count, since: start.toISOString() });
+  } catch (err) {
+    console.error("[jobs] new-today failed:", err);
+    res.status(500).json({ error: "internal error" });
+  }
+});
+
 // GET /api/jobs
 // Filters: country, source, q (title search), language_match (CSV ok), employment_type,
 //          remote_type, category, role_family, seniority, blocker (bool),
