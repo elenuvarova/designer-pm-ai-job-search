@@ -1,8 +1,8 @@
-// Seed the single employee's CV directly into the database (e.g. Neon), without
-// the upload UI. Reads a local PDF/DOCX, extracts + chunks + batch-embeds it, and
-// replaces any existing CV.
+// Seed the single employee's CV directly into the database, without the upload
+// UI. Reads a local PDF/DOCX, extracts + chunks + batch-embeds it, and replaces
+// any existing CV.
 //
-// Usage (run locally; DATABASE_URL from backend/.env points at Neon):
+// Usage (run locally; uses whatever DATABASE_URL is set, else local SQLite):
 //   cd backend
 //   node scripts/seedCv.js /path/to/employee-cv.pdf
 //

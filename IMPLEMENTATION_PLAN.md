@@ -5,6 +5,8 @@
 > **History:** this started as the *Benelux AI Job Scout* (ML / Data / AI roles in BE/NL/LU). It was repurposed in June 2026 to target Design & Product roles across Europe — the architecture below is unchanged; only the domain (role/skill rules, search terms, geography, filters, branding) was swapped. Sections describing ML roles / Benelux-only scope are kept for historical context.
 >
 > **Hard constraint: $0 to build and $0 to run, for a single user.** Every component was chosen against free-tier limits. Free tiers move — these were last verified **2026-06-01**, and one has since tightened: Gemini cut its free request quota in Dec 2025 (see §2 / §12). The design still runs at $0; the headroom is just smaller than first written.
+>
+> **Infrastructure update (June 2026):** the original **Render + Neon + GitHub-Actions** topology described throughout this plan has been **fully replaced** by a self-hosted **Coolify** platform on a **Hetzner** VPS — the app runs as a single Docker container behind Traefik, **Postgres is self-hosted on the same box** (Neon has been retired and deleted), and the daily collect→classify→embed pipeline runs **in-process via node-cron**. Every mention of *Render*, *Neon*, or *GitHub Actions cron* below is **historical**, kept only to document the original $0 design rationale — none of the three is in use today.
 
 ---
 
@@ -21,7 +23,7 @@ This document is the original design. The codebase has since evolved — this ta
 | **Data models** | incl. `SearchProfile`, `JobScore` | Not built. Shipped: Source, Job, JobClassification, JobSkill, Application, CvDocument, CvChunk |
 | **API routers** | profiles, scoring, jobs sub-routes (save/hide/apply) | jobs, collect, **classify**, cv, rag, **applications**, **analytics** (no profiles router) |
 | **Frontend** | "no router for v1" | React Router + pages JobFeed/JobDetail/Applications/**Skills** + guided Tour + theme toggle |
-| **Deploy** | Render web service + Neon Postgres + GitHub Actions cron | As planned (Render web + Neon + Actions) |
+| **Deploy** | Render web service + Neon Postgres + GitHub Actions cron | **Migrated off all three** → single Docker container on **Coolify** (Hetzner VPS) serving API + SPA, **self-hosted Postgres** on the same box (Neon deleted), daily pipeline via **in-process node-cron** (no Render, no Neon, no GitHub Actions) |
 | **Cross-source dedup** | "keep richest description, merge sources" | App-level skip on `dedupe_hash` in `scripts/collect.js` (store-once, no merge) |
 
 ---
@@ -300,12 +302,14 @@ render.yaml                 # databases block removed; DATABASE_URL = Neon (secr
 
 ---
 
-## 13. First concrete steps
+## 13. First concrete steps *(historical bootstrap — the project is built and running)*
 
-1. **Neon:** create a free project, copy the connection string.
-2. Set `DATABASE_URL` (Neon) in **Render env vars** and **GitHub Secrets**; verify `/api/health` → `{"status":"ok","db":"postgres"}`.
-3. **Adzuna:** register at developer.adzuna.com → instant `app_id`/`app_key` → add to secrets.
+> The original Neon/Render bootstrap below is **superseded**: production now runs on **Coolify** (Hetzner) with **self-hosted Postgres** — `DATABASE_URL` points at the Coolify-internal Postgres, and the collector runs **in-process via node-cron** (no GitHub Secrets/Actions). Local dev uses **SQLite** automatically when `DATABASE_URL` is unset. Steps 3–4 (API keys) still apply; set them as **Coolify environment variables**.
+
+1. ~~**Neon:** create a free project, copy the connection string.~~ *(retired — Postgres is self-hosted on the Coolify/Hetzner box)*
+2. ~~Set `DATABASE_URL` (Neon) in Render env vars and GitHub Secrets.~~ *(now: `DATABASE_URL` → Coolify-internal Postgres; verify `/api/health` → `{"status":"ok","db":"postgres"}`)*
+3. **Adzuna:** register at developer.adzuna.com → instant `app_id`/`app_key` → add to env vars.
 4. **Gemini:** get a free AI Studio key → add `GEMINI_API_KEY`.
-5. Begin **Phase 1**: `Source`/`Job` models + Adzuna collector + `scripts/collect.js` + the GitHub Action.
+5. Begin **Phase 1**: `Source`/`Job` models + Adzuna collector + `scripts/collect.js` (now scheduled in-process via node-cron).
 
 Phases 0–5 are built and running. Free-tier numbers were last verified **2026-06-01** — re-check periodically, since they move (Gemini's Dec-2025 quota cut is the cautionary example).
