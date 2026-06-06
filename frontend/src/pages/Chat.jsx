@@ -21,7 +21,8 @@ export default function Chat() {
   async function send(text) {
     const q = (text ?? input).trim();
     if (!q || loading) return;
-    const history = messages.map((m) => ({ role: m.role, content: m.content }));
+    // Backend only uses the last 4 turns — cap the payload to match.
+    const history = messages.slice(-4).map((m) => ({ role: m.role, content: m.content }));
     setMessages((m) => [...m, { role: "user", content: q }]);
     setInput("");
     setLoading(true);

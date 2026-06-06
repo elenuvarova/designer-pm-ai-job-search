@@ -7,7 +7,7 @@
 import "dotenv/config";
 import fs from "node:fs";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { sequelize } from "../db.js";
 import {
   syncModels, Source, Job, JobClassification, JobSkill, Application, CvDocument, CvChunk,
@@ -60,7 +60,7 @@ export async function runRestore(fileArg, { confirm = false } = {}) {
   return { loaded: true };
 }
 
-if (process.argv[1].endsWith("restore.js")) {
+if (import.meta.url === pathToFileURL(process.argv[1]).href) {
   try {
     await runRestore(process.argv[2], { confirm: process.argv.includes("--yes") });
     await sequelize.close();

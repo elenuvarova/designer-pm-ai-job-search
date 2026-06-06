@@ -5,7 +5,7 @@
 import "dotenv/config";
 import fs from "node:fs";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { sequelize } from "../db.js";
 import {
   syncModels, Source, Job, JobClassification, JobSkill, Application, CvDocument, CvChunk,
@@ -37,7 +37,7 @@ export async function runBackup(fileArg) {
   return file;
 }
 
-if (process.argv[1].endsWith("backup.js")) {
+if (import.meta.url === pathToFileURL(process.argv[1]).href) {
   try {
     await runBackup(process.argv[2]);
     await sequelize.close();

@@ -1,5 +1,6 @@
 // Daily job collection script — run via GitHub Actions cron or POST /api/collect/run
 import "dotenv/config";
+import { Op } from "sequelize";
 import { sequelize } from "../db.js";
 import { syncModels, Source, Job } from "../models/index.js";
 import { collectAdzuna } from "../collectors/adzuna.js";
@@ -136,29 +137,56 @@ function clampFields(job) {
   return job;
 }
 
+// External feeds can carry hostile apply URLs (javascript:/data: URIs). Only let
+// http(s) URLs through to the DB → frontend href; anything else becomes null.
+function sanitizeApplyUrl(url) {
+  return typeof url === "string" && /^https?:\/\//i.test(url) ? url : null;
+}
+
 async function saveJobs(rawJobs) {
   let created = 0;
   let skipped = 0;
 
-  for (const raw of rawJobs) {
+  // Normalize + sanitize all rows up front.
+  const rows = rawJobs.map((raw) => {
     const jobData = clampFields(raw);
-    try {
-      // Cross-source dedup: dedupe_hash = sha1(title|company|country), so the same
-      // posting surfaced by several sources (e.g. a company board + RemoteOK + HN)
-      // is stored once. Done in app code rather than a unique index so it works on
-      // existing data without a migration. (Re-runs of the same source are also
-      // caught here, before the findOrCreate on source_job_id.)
-      if (jobData.dedupe_hash) {
-        const dup = await Job.findOne({
-          where: { dedupe_hash: jobData.dedupe_hash },
-          attributes: ["id"],
-        });
-        if (dup) {
-          skipped++;
-          continue;
-        }
-      }
+    jobData.apply_url = sanitizeApplyUrl(jobData.apply_url);
+    return jobData;
+  });
 
+  // Cross-source dedup: dedupe_hash = sha1(title|company|country), so the same
+  // posting surfaced by several sources (e.g. a company board + RemoteOK + HN)
+  // is stored once. Done in app code rather than a DB unique index so it works on
+  // existing data without a migration (and unicode-safe titles can't collide).
+  //
+  // Batched: one findAll over this source's hashes builds the set of hashes
+  // already in the DB, instead of a findOne per row. Combined with the unified
+  // pipeline lock (only one collect/classify runs at a time) this also closes the
+  // earlier check-then-insert race without needing a unique index on dedupe_hash.
+  const hashes = [...new Set(rows.map((r) => r.dedupe_hash).filter(Boolean))];
+  const existing = new Set();
+  if (hashes.length) {
+    const found = await Job.findAll({
+      where: { dedupe_hash: { [Op.in]: hashes } },
+      attributes: ["dedupe_hash"],
+    });
+    for (const j of found) existing.add(j.dedupe_hash);
+  }
+
+  for (const jobData of rows) {
+    // Skip rows whose dedupe_hash already exists (in the DB or earlier in this
+    // batch — add to the set as we go so two raw rows sharing a hash collapse).
+    if (jobData.dedupe_hash) {
+      if (existing.has(jobData.dedupe_hash)) {
+        skipped++;
+        continue;
+      }
+      existing.add(jobData.dedupe_hash);
+    }
+
+    try {
+      // Upsert-by-(source_id, source_job_id): the unique index guards re-runs of
+      // the same source.
       const [, wasCreated] = await Job.findOrCreate({
         where: { source_id: jobData.source_id, source_job_id: jobData.source_job_id },
         defaults: jobData,

@@ -5,6 +5,12 @@
 const EMBED_URL =
   "https://generativelanguage.googleapis.com/v1beta/models/gemini-embedding-001:embedContent";
 
+// The model that produces every vector in this app, and the dimension we pin.
+// Stored alongside vectors (jobs.embedding_model / cv_chunks.embedding_model) so
+// vectors from a different model/space can be detected rather than mis-compared.
+export const EMBED_MODEL = "gemini-embedding-001";
+export const EMBED_DIM = 768;
+
 export async function embed(text) {
   const key = process.env.GEMINI_API_KEY;
   if (!key) throw new Error("GEMINI_API_KEY not set");

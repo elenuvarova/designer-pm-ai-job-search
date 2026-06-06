@@ -30,11 +30,16 @@ async function ensureColumns() {
   const qi = sequelize.getQueryInterface();
   const wanted = [
     { table: "jobs", column: "embedding", spec: { type: DataTypes.JSON, allowNull: true } },
+    // Records WHICH embedding model produced jobs.embedding, so vectors from a
+    // different model/space can be detected instead of silently mis-compared.
+    { table: "jobs", column: "embedding_model", spec: { type: DataTypes.STRING, allowNull: true } },
     { table: "jobs", column: "salary_min", spec: { type: DataTypes.FLOAT, allowNull: true } },
     { table: "jobs", column: "salary_max", spec: { type: DataTypes.FLOAT, allowNull: true } },
     { table: "jobs", column: "salary_currency", spec: { type: DataTypes.STRING(3), allowNull: true } },
     { table: "job_classifications", column: "category", spec: { type: DataTypes.STRING(20), allowNull: true } },
     { table: "job_classifications", column: "portfolio_required", spec: { type: DataTypes.BOOLEAN, allowNull: true } },
+    // Same provenance tracking for CV chunk vectors (see jobs.embedding_model).
+    { table: "cv_chunks", column: "embedding_model", spec: { type: DataTypes.STRING, allowNull: true } },
   ];
   for (const { table, column, spec } of wanted) {
     try {

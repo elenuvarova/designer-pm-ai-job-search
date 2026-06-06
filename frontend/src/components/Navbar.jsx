@@ -33,8 +33,9 @@ export default function Navbar({ onHelpClick }) {
           className="theme-btn"
           onClick={toggle}
           title={theme === "dark" ? "Switch to light theme" : "Switch to dark theme"}
+          aria-label={theme === "dark" ? "Switch to light theme" : "Switch to dark theme"}
         >
-          {theme === "dark" ? "☀" : "☾"}
+          <span aria-hidden="true">{theme === "dark" ? "☀" : "☾"}</span>
         </button>
       </div>
     </nav>

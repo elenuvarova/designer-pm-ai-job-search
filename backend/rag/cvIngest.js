@@ -1,7 +1,8 @@
 import { createRequire } from "module";
 import { CvDocument, CvChunk } from "../models/index.js";
 import { chunkText } from "./chunk.js";
-import { embedBatch } from "./embed.js";
+import { embedBatch, EMBED_MODEL } from "./embed.js";
+import { invalidateCvTermsCache } from "./cvMatch.js";
 
 // pdf-parse and mammoth ship CommonJS — load via createRequire in this ESM file.
 const require = createRequire(import.meta.url);
@@ -57,9 +58,20 @@ export async function ingestCv({ buffer, mimetype, label }) {
   const chunkRows = chunks.map((chunk, i) => {
     const embedding = Array.isArray(vectors[i]) ? vectors[i] : null;
     if (embedding) embedded++;
-    return { cv_document_id: doc.id, chunk_text: chunk, embedding };
+    // Stamp the embedding model so a future model change can detect and refuse
+    // to mix vector spaces (see jobSearch/retrieve dimension guards).
+    return {
+      cv_document_id: doc.id,
+      chunk_text: chunk,
+      embedding,
+      embedding_model: embedding ? EMBED_MODEL : null,
+    };
   });
   await CvChunk.bulkCreate(chunkRows);
+
+  // The active CV just changed — drop the cached term Set so match scores /
+  // skill-gap reflect the new CV immediately (the 5-min TTL is only a fallback).
+  invalidateCvTermsCache();
 
   return { id: doc.id, label, chunks: chunkRows.length, embedded };
 }

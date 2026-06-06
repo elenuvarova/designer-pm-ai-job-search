@@ -3,6 +3,8 @@ import { Link } from "react-router-dom";
 import Navbar from "../components/Navbar.jsx";
 import LanguageBadge from "../components/LanguageBadge.jsx";
 import { SkeletonFeed, ErrorState } from "../components/States.jsx";
+import { COUNTRY_FLAGS } from "../lib/countries.js";
+import { relativeTime } from "../lib/format.js";
 
 const STATUSES = ["saved", "need_cv", "applied", "interview", "offer", "rejected", "archived"];
 
@@ -15,21 +17,6 @@ const STATUS_CONFIG = {
   rejected:  { label: "Rejected",   cls: "status-rejected" },
   archived:  { label: "Archived",   cls: "status-archived" },
 };
-
-const COUNTRY_FLAGS = {
-  BE: "🇧🇪", NL: "🇳🇱", LU: "🇱🇺",
-  GB: "🇬🇧", DE: "🇩🇪", FR: "🇫🇷", ES: "🇪🇸", IT: "🇮🇹", AT: "🇦🇹", PL: "🇵🇱",
-};
-
-function relativeTime(iso) {
-  if (!iso) return "—";
-  const d = Math.floor((Date.now() - new Date(iso).getTime()) / 86400000);
-  if (d === 0) return "today";
-  if (d === 1) return "yesterday";
-  if (d < 7) return `${d}d ago`;
-  if (d < 30) return `${Math.floor(d / 7)}w ago`;
-  return `${Math.floor(d / 30)}mo ago`;
-}
 
 function ApplicationRow({ app, onStatusChange, onDelete }) {
   const job = app.Job;
@@ -87,6 +74,7 @@ export default function Applications() {
   const [loading, setLoading] = useState(true);
   const [error, setError]     = useState(null);
   const [filter, setFilter]   = useState("all");
+  const [actionError, setActionError] = useState(null);
   const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
@@ -100,19 +88,33 @@ export default function Applications() {
   }, [reloadKey]);
 
   async function handleStatusChange(id, status) {
-    await fetch(`/api/applications/${id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status }),
-    });
-    setApps((prev) =>
-      prev.map((a) => (a.id === id ? { ...a, status } : a))
-    );
+    setActionError(null);
+    const prev = apps; // snapshot for revert
+    setApps((cur) => cur.map((a) => (a.id === id ? { ...a, status } : a)));
+    try {
+      const r = await fetch(`/api/applications/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status }),
+      });
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    } catch {
+      setApps(prev); // revert — keep UI in sync with the server
+      setActionError("Couldn't update status. Please try again.");
+    }
   }
 
   async function handleDelete(id) {
-    await fetch(`/api/applications/${id}`, { method: "DELETE" });
-    setApps((prev) => prev.filter((a) => a.id !== id));
+    setActionError(null);
+    const prev = apps; // snapshot for revert
+    setApps((cur) => cur.filter((a) => a.id !== id));
+    try {
+      const r = await fetch(`/api/applications/${id}`, { method: "DELETE" });
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    } catch {
+      setApps(prev); // revert — keep UI in sync with the server
+      setActionError("Couldn't remove the application. Please try again.");
+    }
   }
 
   const filtered = filter === "all" ? apps : apps.filter((a) => a.status === filter);
@@ -182,6 +184,8 @@ export default function Applications() {
             </button>
           ))}
         </div>
+
+        {actionError && <div className="inline-error">{actionError}</div>}
 
         {loading && <SkeletonFeed rows={4} />}
 

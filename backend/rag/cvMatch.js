@@ -47,14 +47,37 @@ export function scoreJobText(cvTerms, jobText) {
   return Math.round((hits / cvTerms.size) * 100);
 }
 
+// In-process cache of the active CV's term Set. getActiveCvTerms runs on every
+// match-sort feed load and every chat turn; without this it re-reads the CV doc
+// + all chunks and rebuilds the Set each time. Keyed by the active doc id with a
+// 5-min TTL so it self-corrects if a new CV is ingested (id changes → miss).
+// ingestCv (cvIngest.js, not owned here) destroys+creates CV rows; if it gains a
+// hook it should call invalidateCvTermsCache() for instant freshness. TODO:
+// add that call in cvIngest.js. Until then the 5-min TTL bounds staleness.
+const CV_TERMS_TTL_MS = 5 * 60 * 1000;
+let _cvTermsCache = null; // { docId, terms, ts }
+
+export function invalidateCvTermsCache() {
+  _cvTermsCache = null;
+}
+
 // The active (latest) CV's term Set, or null if no CV/chunks exist.
 export async function getActiveCvTerms() {
-  const doc = await CvDocument.findOne({ order: [["created_at", "DESC"]] });
+  const doc = await CvDocument.findOne({ order: [["created_at", "DESC"]], attributes: ["id"] });
   if (!doc) return null;
+
+  const fresh =
+    _cvTermsCache &&
+    _cvTermsCache.docId === doc.id &&
+    Date.now() - _cvTermsCache.ts < CV_TERMS_TTL_MS;
+  if (fresh) return _cvTermsCache.terms;
+
   const chunks = await CvChunk.findAll({
     where: { cv_document_id: doc.id },
     attributes: ["chunk_text"],
   });
   if (!chunks.length) return null;
-  return extractTerms(chunks.map((c) => c.chunk_text).join(" "));
+  const terms = extractTerms(chunks.map((c) => c.chunk_text).join(" "));
+  _cvTermsCache = { docId: doc.id, terms, ts: Date.now() };
+  return terms;
 }

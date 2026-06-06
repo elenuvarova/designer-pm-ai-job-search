@@ -20,7 +20,8 @@ const Job = sequelize.define(
     salary_currency: { type: DataTypes.STRING(3) },
     raw_json: { type: DataTypes.JSON },
     dedupe_hash: { type: DataTypes.STRING(40) },
-    embedding: { type: DataTypes.JSON }, // float[768] from gemini-embedding-001; null until backfilled
+    embedding: { type: DataTypes.JSON }, // float[768] from gemini-embedding-001; null until backfilled, [] = unembeddable sentinel
+    embedding_model: { type: DataTypes.STRING }, // which model produced `embedding` (space provenance)
   },
   {
     tableName: "jobs",

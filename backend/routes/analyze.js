@@ -1,17 +1,15 @@
 import { Router } from "express";
 import { CvDocument } from "../models/index.js";
-import { detectLanguage } from "../nlp/language.js";
-import { classifyEmployment } from "../nlp/employment.js";
-import { analyzeLanguageRequirements } from "../nlp/languageReq.js";
-import { classifyRole } from "../nlp/role.js";
-import { classifySeniority } from "../nlp/seniority.js";
-import { classifyRemote } from "../nlp/remote.js";
 import { extractSkills } from "../nlp/skills.js";
-import { detectPortfolioRequired } from "../nlp/portfolio.js";
 import { stripHtml } from "../nlp/normalize.js";
+import { classifyJob } from "../nlp/classifyJob.js";
 import { extractTerms, scoreJobText } from "../rag/cvMatch.js";
 
 const router = Router();
+
+// Cap pasted body length before the NLP pipeline. A 20k-char excerpt is more
+// than enough signal for classification/term-overlap and bounds CPU/memory.
+const MAX_TEXT = 20000;
 
 // POST /api/analyze — run the same NLP pipeline + CV match/skill-gap on an
 // arbitrary pasted job description (no DB write). Lets the user vet ANY posting
@@ -19,31 +17,13 @@ const router = Router();
 router.post("/", async (req, res) => {
   try {
     const title = (req.body.title || "").trim();
-    // Accept either plain text or pasted HTML.
-    const text = stripHtml(String(req.body.text || "")).trim();
+    // Accept either plain text or pasted HTML. Cap length before the pipeline.
+    const text = stripHtml(String(req.body.text || "")).trim().slice(0, MAX_TEXT);
     if (text.length < 30) {
       return res.status(400).json({ error: "Paste the job description (a few sentences at least)." });
     }
 
-    const role = classifyRole(title, text);
-    const employment = classifyEmployment(title, text);
-    const langReq = analyzeLanguageRequirements(text);
-
-    const classification = {
-      job_post_language: detectLanguage(text),
-      category: role.category,
-      role_family: role.role_family,
-      role_confidence: role.confidence,
-      seniority: classifySeniority(title, text).seniority,
-      employment_type: employment.employment_type,
-      employment_confidence: employment.confidence,
-      remote_type: classifyRemote(title, text),
-      portfolio_required: detectPortfolioRequired(text),
-      required_languages: langReq.required_languages,
-      optional_languages: langReq.optional_languages,
-      language_blocker: langReq.language_blocker,
-      language_match: langReq.language_match,
-    };
+    const { classification } = classifyJob(title, text);
 
     const jobSkills = [...new Set(extractSkills(`${title} ${text}`).map((s) => s.skill))];
 

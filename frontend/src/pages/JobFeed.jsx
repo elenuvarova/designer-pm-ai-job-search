@@ -5,14 +5,8 @@ import LanguageBadge from "../components/LanguageBadge.jsx";
 import SourceCredit from "../components/SourceCredit.jsx";
 import Tour, { shouldShowTour } from "../components/Tour.jsx";
 import { SkeletonFeed, ErrorState, EmptyState } from "../components/States.jsx";
-
-const COUNTRY_FLAGS = {
-  BE: "🇧🇪", NL: "🇳🇱", LU: "🇱🇺", GB: "🇬🇧", DE: "🇩🇪", FR: "🇫🇷", ES: "🇪🇸",
-  IT: "🇮🇹", AT: "🇦🇹", PL: "🇵🇱", PT: "🇵🇹", IE: "🇮🇪", SE: "🇸🇪", DK: "🇩🇰",
-  NO: "🇳🇴", FI: "🇫🇮", CH: "🇨🇭", CZ: "🇨🇿", RO: "🇷🇴", GR: "🇬🇷", HU: "🇭🇺",
-  EE: "🇪🇪", LV: "🇱🇻", LT: "🇱🇹", BG: "🇧🇬", HR: "🇭🇷", SK: "🇸🇰", SI: "🇸🇮", IS: "🇮🇸",
-  US: "🇺🇸", IN: "🇮🇳", SG: "🇸🇬",
-};
+import { COUNTRY_FLAGS } from "../lib/countries.js";
+import { relativeTime, formatSalary } from "../lib/format.js";
 
 // USA + Asia are collected remote-only (see backend collectors).
 const REMOTE_COUNTRIES = [["US", "United States"], ["IN", "India"], ["SG", "Singapore"]];
@@ -43,25 +37,6 @@ const GRADES = [
 ];
 
 const LANG_DEFAULT = "good,maybe,unknown"; // English-friendly: hides risk + blocker
-
-function relativeTime(iso) {
-  if (!iso) return "";
-  const d = Math.floor((Date.now() - new Date(iso).getTime()) / 86400000);
-  if (d === 0) return "today";
-  if (d === 1) return "yesterday";
-  if (d < 7)  return `${d}d ago`;
-  if (d < 30) return `${Math.floor(d / 7)}w ago`;
-  return `${Math.floor(d / 30)}mo ago`;
-}
-
-const CURRENCY = { EUR: "€", GBP: "£", PLN: "zł" };
-function formatSalary(min, max, currency) {
-  if (!min && !max) return null;
-  const sym = CURRENCY[currency] || "";
-  const k = (n) => (n >= 1000 ? `${Math.round(n / 1000)}k` : Math.round(n));
-  if (min && max) return `${sym}${k(min)}–${k(max)}`;
-  return `${sym}${k(min || max)}${min && !max ? "+" : ""}`;
-}
 
 function CvUploadBanner({ onUploaded }) {
   const [uploading, setUploading] = useState(false);
@@ -115,7 +90,7 @@ function CvScoreBadge({ score }) {
   return <span className={`cv-score-badge ${level}`}>{score}% match</span>;
 }
 
-function JobCard({ job, isFirst, cvScore }) {
+function JobCard({ job, isFirst }) {
   const c = job.JobClassification;
   const salary = formatSalary(job.salary_min, job.salary_max, job.salary_currency);
   return (
@@ -127,7 +102,7 @@ function JobCard({ job, isFirst, cvScore }) {
       <div className="job-card-top">
         <div className="job-title">{job.title}</div>
         <div className="job-card-badges">
-          <CvScoreBadge score={cvScore} />
+          <CvScoreBadge score={job.cv_match} />
           <span data-tour={isFirst ? "lang-badge" : undefined}>
             <LanguageBadge match={c?.language_match} />
           </span>
@@ -176,7 +151,6 @@ export default function JobFeed() {
   const [error, setError]     = useState(null);
   const [showTour, setShowTour] = useState(false);
   const [hasCv, setHasCv]     = useState(null); // null=unknown, false=none, true=yes
-  const [scores, setScores]   = useState({});
   const [reloadKey, setReloadKey] = useState(0);
 
   const q          = searchParams.get("q")              || "";
@@ -315,17 +289,6 @@ export default function JobFeed() {
       .then((cv) => setHasCv(!!cv))
       .catch(() => setHasCv(false));
   }, []);
-
-  // Fetch CV-match scores for the current page of jobs whenever jobs or CV status change.
-  // The match sort already returns cv_match in the payload, so skip the extra round-trip there.
-  useEffect(() => {
-    if (!hasCv || !result?.jobs?.length || result.sort === "match") { setScores({}); return; }
-    const ids = result.jobs.map((j) => j.id).join(",");
-    fetch(`/api/cv/scores?job_ids=${ids}`)
-      .then((r) => r.json())
-      .then((data) => setScores(data.scores || {}))
-      .catch(() => setScores({}));
-  }, [hasCv, result]);
 
   const disciplineOptions = category ? FAMILIES[category] || [] : null;
 
@@ -529,7 +492,7 @@ export default function JobFeed() {
             {langMatch === LANG_DEFAULT && " · English-friendly"}
             {country && ` · ${country}`}
             {result.sort === "match" &&
-              (result.capped ? " · ranked the 600 most recent by CV match" : " · sorted by CV match")}
+              (result.capped ? " · best matches among the 600 most recent jobs" : " · sorted by CV match")}
             {result.semantic && " · ✨ semantic"}
             {result.pages > 1 && ` · page ${page} of ${result.pages}`}
           </div>
@@ -557,7 +520,7 @@ export default function JobFeed() {
         )}
 
         {!loading && !error && result?.jobs?.map((job, i) => (
-          <JobCard key={job.id} job={job} isFirst={i === 0} cvScore={job.cv_match ?? scores[job.id]} />
+          <JobCard key={job.id} job={job} isFirst={i === 0} />
         ))}
 
         {!loading && !error && result && result.pages > 1 && (

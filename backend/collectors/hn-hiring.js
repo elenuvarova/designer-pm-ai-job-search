@@ -130,7 +130,10 @@ export async function collectHnHiring(source) {
         apply_url: applyUrl,
         posted_at: comment.created_at ? new Date(comment.created_at) : null,
         raw_json: { objectID: comment.objectID, author: comment.author },
-        dedupe_hash: dedupeHash(title, company, comment.objectID),
+        // HN jobs store country:null and are remote, so use the "REMOTE" region
+        // constant (like greenhouse/remoteok) for cross-source dedup — not the
+        // per-comment objectID, which would make every row unique and defeat it.
+        dedupe_hash: dedupeHash(title, company, "REMOTE"),
       });
     }
 

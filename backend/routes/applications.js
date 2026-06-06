@@ -59,9 +59,15 @@ router.patch("/:id", async (req, res) => {
     await app.update({
       ...(status && { status }),
       ...(notes !== undefined && { notes }),
-      ...(applied_at && { applied_at }),
-      ...(follow_up_at && { follow_up_at }),
-      ...(status === "applied" && !app.applied_at && { applied_at: new Date() }),
+      // Use !== undefined (not truthiness) so an explicit null/"" CLEARS the date.
+      // Normalise empty string to null so the column is cleared, not set to "".
+      ...(applied_at !== undefined && { applied_at: applied_at || null }),
+      ...(follow_up_at !== undefined && { follow_up_at: follow_up_at || null }),
+      // Auto-stamp applied_at when moving to "applied" and it isn't being set
+      // explicitly in this request and isn't already set.
+      ...(status === "applied" && applied_at === undefined && !app.applied_at && {
+        applied_at: new Date(),
+      }),
     });
     res.json(app);
   } catch (err) {

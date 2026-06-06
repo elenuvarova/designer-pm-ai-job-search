@@ -75,34 +75,45 @@ export async function collectSmartRecruiters(source) {
         await sleep(300);
       }
 
-      // 2) Fetch detail (description + apply URL) for each kept posting.
+      // 2) Fetch detail (description + apply URL) for each kept posting. The
+      // detail GETs are independent, so run them through a small promise-pool
+      // (4 in flight) instead of one-at-a-time with a 300ms sleep. Per-posting
+      // try/catch keeps one failure from aborting the batch.
+      const toFetch = kept.slice(0, MAX_DETAILS);
       let added = 0;
-      for (const { posting, country } of kept.slice(0, MAX_DETAILS)) {
-        try {
-          const detail = await getJson(`${API}/${company.slug}/postings/${posting.id}`);
-          jobs.push({
-            source_id: source.id,
-            source_job_id: `${company.slug}/${posting.id}`,
-            title: (posting.name || "").slice(0, 300),
-            company: company.name,
-            country,
-            city: posting.location?.city || company.city,
-            location_raw:
-              posting.location?.city
-                ? `${posting.location.city}, ${country}`
-                : company.city || null,
-            description: detailDescription(detail),
-            apply_url: detail.applyUrl || detail.postingUrl || null,
-            posted_at: posting.releasedDate ? new Date(posting.releasedDate) : null,
-            raw_json: { id: posting.id, _slug: company.slug },
-            dedupe_hash: dedupeHash(posting.name, company.name, country),
-          });
-          added++;
-        } catch (err) {
-          console.error(`  SmartRecruiters/${company.slug}/${posting.id}: ${err.message}`);
+      const CONCURRENCY = 4;
+      let cursor = 0;
+      async function worker() {
+        while (cursor < toFetch.length) {
+          const { posting, country } = toFetch[cursor++];
+          try {
+            const detail = await getJson(`${API}/${company.slug}/postings/${posting.id}`);
+            jobs.push({
+              source_id: source.id,
+              source_job_id: `${company.slug}/${posting.id}`,
+              title: (posting.name || "").slice(0, 300),
+              company: company.name,
+              country,
+              city: posting.location?.city || company.city,
+              location_raw:
+                posting.location?.city
+                  ? `${posting.location.city}, ${country}`
+                  : company.city || null,
+              description: detailDescription(detail),
+              apply_url: detail.applyUrl || detail.postingUrl || null,
+              posted_at: posting.releasedDate ? new Date(posting.releasedDate) : null,
+              raw_json: { id: posting.id, _slug: company.slug },
+              dedupe_hash: dedupeHash(posting.name, company.name, country),
+            });
+            added++;
+          } catch (err) {
+            console.error(`  SmartRecruiters/${company.slug}/${posting.id}: ${err.message}`);
+          }
         }
-        await sleep(300);
       }
+      await Promise.all(
+        Array.from({ length: Math.min(CONCURRENCY, toFetch.length) }, () => worker())
+      );
 
       console.log(`  SmartRecruiters/${company.slug}: ${added} relevant (Europe)`);
     } catch (err) {

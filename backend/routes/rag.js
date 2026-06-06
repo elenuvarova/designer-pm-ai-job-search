@@ -10,7 +10,10 @@ const ACTIONS = ["tailor-cv", "cover-letter", "interview-prep"];
 
 // In-memory cache keyed by company name — briefs are company-level and repeat
 // across jobs, so this avoids re-spending LLM quota. Resets on restart ($0).
+// Entries store {value, ts}; anything older than BRIEF_TTL_MS is treated as a
+// miss (and regenerated) so the cache can't grow unbounded or serve stale facts.
 const briefCache = new Map();
+const BRIEF_TTL_MS = 24 * 60 * 60 * 1000;
 
 function companyBriefPrompt(job) {
   return `
@@ -42,10 +45,13 @@ router.post("/:jobId/company-brief", async (req, res) => {
     if (!job.company) return res.status(400).json({ error: "No company name for this job" });
 
     const key = job.company.toLowerCase();
-    if (briefCache.has(key)) return res.json({ result: briefCache.get(key), cached: true });
+    const hit = briefCache.get(key);
+    if (hit && Date.now() - hit.ts < BRIEF_TTL_MS) {
+      return res.json({ result: hit.value, cached: true });
+    }
 
     const brief = await generateText(companyBriefPrompt(job));
-    briefCache.set(key, brief);
+    briefCache.set(key, { value: brief, ts: Date.now() });
     res.json({ result: brief });
   } catch (err) {
     console.error("[rag] company-brief error:", err);

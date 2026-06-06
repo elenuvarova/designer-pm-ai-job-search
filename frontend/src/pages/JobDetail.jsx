@@ -4,36 +4,14 @@ import Navbar from "../components/Navbar.jsx";
 import LanguageBadge from "../components/LanguageBadge.jsx";
 import SourceCredit from "../components/SourceCredit.jsx";
 import { SkeletonFeed, ErrorState } from "../components/States.jsx";
-
-const COUNTRY_FLAGS = {
-  BE: "🇧🇪", NL: "🇳🇱", LU: "🇱🇺", GB: "🇬🇧", DE: "🇩🇪", FR: "🇫🇷", ES: "🇪🇸",
-  IT: "🇮🇹", AT: "🇦🇹", PL: "🇵🇱", PT: "🇵🇹", IE: "🇮🇪", SE: "🇸🇪", DK: "🇩🇰",
-  NO: "🇳🇴", FI: "🇫🇮", CH: "🇨🇭", CZ: "🇨🇿", RO: "🇷🇴", GR: "🇬🇷", HU: "🇭🇺",
-  EE: "🇪🇪", LV: "🇱🇻", LT: "🇱🇹", BG: "🇧🇬", HR: "🇭🇷", SK: "🇸🇰", SI: "🇸🇮", IS: "🇮🇸",
-  US: "🇺🇸", IN: "🇮🇳", SG: "🇸🇬",
-};
-
-const CURRENCY = { EUR: "€", GBP: "£", PLN: "zł" };
-function formatSalary(min, max, currency) {
-  if (!min && !max) return null;
-  const sym = CURRENCY[currency] || "";
-  const k = (n) => (n >= 1000 ? `${Math.round(n / 1000)}k` : Math.round(n));
-  if (min && max) return `${sym}${k(min)}–${k(max)}`;
-  return `${sym}${k(min || max)}${min && !max ? "+" : ""}`;
-}
-
-function relativeTime(iso) {
-  if (!iso) return "";
-  const d = Math.floor((Date.now() - new Date(iso).getTime()) / 86400000);
-  if (d === 0) return "today";
-  if (d === 1) return "yesterday";
-  if (d < 7)  return `${d} days ago`;
-  if (d < 30) return `${Math.floor(d / 7)} weeks ago`;
-  return `${Math.floor(d / 30)} months ago`;
-}
+import { COUNTRY_FLAGS } from "../lib/countries.js";
+import { relativeTime, formatSalary } from "../lib/format.js";
 
 function ApplyButton({ url }) {
   if (!url) return null;
+  // Defense in depth: only link out to real http(s) URLs; anything else
+  // (e.g. javascript:, relative junk) renders as plain, non-clickable text.
+  if (!/^https?:\/\//i.test(url)) return <span className="apply-btn">Apply →</span>;
   return (
     <a href={url} target="_blank" rel="noopener noreferrer" className="apply-btn">
       Apply →
@@ -207,9 +185,12 @@ function SaveButton({ jobId }) {
   const [app, setApp] = useState(undefined);
 
   useEffect(() => {
-    fetch(`/api/applications?job_id=${jobId}`)
+    const ctrl = new AbortController();
+    fetch(`/api/applications?job_id=${jobId}`, { signal: ctrl.signal })
       .then((r) => r.json())
-      .then((arr) => setApp(arr?.[0] || null));
+      .then((arr) => setApp(arr?.[0] || null))
+      .catch((e) => { if (e.name !== "AbortError") setApp(null); });
+    return () => ctrl.abort();
   }, [jobId]);
 
   async function save() {
@@ -260,10 +241,12 @@ function SkillGap({ jobId }) {
   const [data, setData] = useState(null);
 
   useEffect(() => {
-    fetch(`/api/cv/skill-gap/${jobId}`)
+    const ctrl = new AbortController();
+    fetch(`/api/cv/skill-gap/${jobId}`, { signal: ctrl.signal })
       .then((r) => r.json())
       .then(setData)
-      .catch(() => setData(null));
+      .catch((e) => { if (e.name !== "AbortError") setData(null); });
+    return () => ctrl.abort();
   }, [jobId]);
 
   if (!data || !data.has_cv) return null;
@@ -339,10 +322,12 @@ function SimilarJobs({ jobId }) {
   const [jobs, setJobs] = useState(null);
 
   useEffect(() => {
-    fetch(`/api/jobs/${jobId}/similar`)
+    const ctrl = new AbortController();
+    fetch(`/api/jobs/${jobId}/similar`, { signal: ctrl.signal })
       .then((r) => r.json())
       .then((d) => setJobs(d.jobs || []))
-      .catch(() => setJobs([]));
+      .catch((e) => { if (e.name !== "AbortError") setJobs([]); });
+    return () => ctrl.abort();
   }, [jobId]);
 
   if (!jobs || jobs.length === 0) return null;
@@ -395,7 +380,7 @@ export default function JobDetail() {
     return (
       <>
         <Navbar />
-        <div className="page" style={{ paddingTop: "1.5rem" }}><SkeletonFeed rows={3} /></div>
+        <div className="page" style={{ paddingTop: "var(--space-6)" }}><SkeletonFeed rows={3} /></div>
       </>
     );
   }
@@ -403,7 +388,7 @@ export default function JobDetail() {
     return (
       <>
         <Navbar />
-        <div className="page" style={{ paddingTop: "1.5rem" }}>
+        <div className="page" style={{ paddingTop: "var(--space-6)" }}>
           <ErrorState message={error} onRetry={() => setReloadKey((k) => k + 1)} />
         </div>
       </>

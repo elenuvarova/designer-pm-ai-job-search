@@ -8,6 +8,7 @@
 // Note: this also clears tracked applications, since they pointed at the old job pool.
 // For a routine refresh (not a domain switch) just run collect + classify — not this.
 import "dotenv/config";
+import { pathToFileURL } from "node:url";
 import { sequelize } from "../db.js";
 import { syncModels, Job, JobClassification, JobSkill, Application } from "../models/index.js";
 
@@ -27,7 +28,7 @@ export async function runReset() {
   return { jobs, classifications, skills, applications };
 }
 
-if (process.argv[1].endsWith("reset.js")) {
+if (import.meta.url === pathToFileURL(process.argv[1]).href) {
   try {
     await runReset();
     await sequelize.close();

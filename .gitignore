@@ -3,6 +3,8 @@ dist/
 build/
 backend/public/
 .env
+**/.env
+backend/.env
 .env.local
 *.log
 .DS_Store

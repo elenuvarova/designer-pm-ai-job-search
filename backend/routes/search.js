@@ -55,7 +55,12 @@ router.post("/chat", async (req, res) => {
   try {
     const message = String(req.body.message || "").trim();
     if (message.length < 2) return res.status(400).json({ error: "Ask a question." });
-    const history = Array.isArray(req.body.history) ? req.body.history.slice(-4) : [];
+    // Keep the last 4 turns, and clamp each turn's content so a pasted wall of
+    // text in history can't blow up the prompt (and token cost) unbounded.
+    const history = (Array.isArray(req.body.history) ? req.body.history.slice(-4) : []).map((h) => ({
+      role: h.role,
+      content: String(h.content || "").slice(0, 500),
+    }));
 
     const vec = await embed(message);
     const ranked = await rankByEmbedding(vec, { limit: 12 });

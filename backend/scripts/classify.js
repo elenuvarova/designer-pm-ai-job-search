@@ -1,27 +1,29 @@
 // Phase 2 classifier — runs over all unclassified jobs in the DB.
 // Rule-based for everything; LLM only for ambiguous language-requirement cases.
 import "dotenv/config";
+import { Op } from "sequelize";
+import { pathToFileURL } from "node:url";
 import { sequelize } from "../db.js";
 import { syncModels, Job, JobClassification, JobSkill } from "../models/index.js";
-import { detectLanguage } from "../nlp/language.js";
-import { classifyEmployment } from "../nlp/employment.js";
 import { analyzeLanguageRequirements } from "../nlp/languageReq.js";
-import { classifyRole } from "../nlp/role.js";
-import { classifySeniority } from "../nlp/seniority.js";
-import { classifyRemote } from "../nlp/remote.js";
 import { extractSkills } from "../nlp/skills.js";
-import { detectPortfolioRequired } from "../nlp/portfolio.js";
+import { classifyJob } from "../nlp/classifyJob.js";
 import { adjudicateLanguage } from "../llm/provider.js";
 import { sleep } from "../nlp/normalize.js";
 
 // Gemini free tier: 15 RPM — 4-second gap keeps us safe
 const LLM_DELAY_MS = 4200;
 
+// Jobs with no classification row yet. Done in SQL via a NOT IN subquery rather
+// than loading every classification id + every Job into JS and diffing.
+// The literal subquery is valid on both SQLite and Postgres.
 async function getUnclassified() {
-  const classified = await JobClassification.findAll({ attributes: ["job_id"] });
-  const doneIds = new Set(classified.map((c) => c.job_id));
-  const all = await Job.findAll({ attributes: ["id", "title", "company", "country", "description"] });
-  return all.filter((j) => !doneIds.has(j.id));
+  return Job.findAll({
+    attributes: ["id", "title", "company", "country", "description"],
+    where: {
+      id: { [Op.notIn]: sequelize.literal("(SELECT job_id FROM job_classifications)") },
+    },
+  });
 }
 
 // --all re-classifies every job (wipes existing classifications + skills first). Use after
@@ -50,34 +52,23 @@ export async function runClassify({ all = false } = {}) {
   const classificationRows = [];
   const skillRows = [];
 
-  // Rule-based pass — no API calls
+  // Rule-based pass — no API calls. Shared classifyJob() produces the base
+  // classification; this script layers persistence-only fields (evidence,
+  // classification_method) and queues ambiguous cases for LLM adjudication.
   for (const job of jobs) {
     const desc = job.description || "";
     const title = job.title || "";
 
-    const lang = detectLanguage(desc);
-    const employment = classifyEmployment(title, desc);
+    // Note: classifyJob runs analyzeLanguageRequirements internally on `desc`,
+    // but we need its evidence/ambiguous_snippets here, so call it once more.
+    // (Pure + cheap; keeps the shared fn's contract narrow.)
     const langReq = analyzeLanguageRequirements(desc);
-    const role = classifyRole(title, desc);
-    const seniority = classifySeniority(title, desc);
-    const remoteType = classifyRemote(title, desc);
+    const { classification } = classifyJob(title, desc);
     const skills = extractSkills(desc);
 
     const row = {
       job_id: job.id,
-      job_post_language: lang,
-      employment_type: employment.employment_type,
-      employment_confidence: employment.confidence,
-      remote_type: remoteType,
-      category: role.category,
-      role_family: role.role_family,
-      role_confidence: role.confidence,
-      seniority: seniority.seniority,
-      portfolio_required: detectPortfolioRequired(desc),
-      required_languages: langReq.required_languages,
-      optional_languages: langReq.optional_languages,
-      language_blocker: langReq.language_blocker,
-      language_match: langReq.language_match,
+      ...classification,
       classification_method: "rule",
       evidence: langReq.evidence,
     };
@@ -143,7 +134,7 @@ export async function runClassify({ all = false } = {}) {
   return stats;
 }
 
-if (process.argv[1].endsWith("classify.js")) {
+if (import.meta.url === pathToFileURL(process.argv[1]).href) {
   try {
     await runClassify({ all: process.argv.includes("--all") });
     await sequelize.close();

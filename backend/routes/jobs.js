@@ -79,11 +79,20 @@ router.get("/", async (req, res) => {
 
     const jobWhere = {};
     if (req.query.country) jobWhere.country = req.query.country.toUpperCase();
-    if (req.query.q) jobWhere.title = { [Op.like]: `%${req.query.q}%` };
-    // min_salary: keep jobs whose stated pay reaches the floor (drops salary-less jobs,
-    // which is acceptable since the filter is opt-in).
+    // Case-insensitive title search. Op.like is case-sensitive on Postgres but
+    // not on SQLite, so pick Op.iLike on Postgres to get consistent behaviour.
+    if (req.query.q) {
+      const likeOp = sequelize.getDialect() === "postgres" ? Op.iLike : Op.like;
+      jobWhere.title = { [likeOp]: `%${req.query.q}%` };
+    }
+    // min_salary: keep jobs whose stated pay reaches the floor (drops salary-less
+    // jobs, which is acceptable since the filter is opt-in). Salaries are stored
+    // in mixed currencies, so comparing a raw EUR floor against a GBP/USD figure
+    // would be dishonest — restrict the comparison to EUR-denominated rows only.
+    // Non-EUR and unknown-currency jobs are excluded from the salary filter.
     const minSalary = parseInt(req.query.min_salary) || 0;
     if (minSalary > 0) {
+      jobWhere.salary_currency = "EUR";
       jobWhere[Op.or] = [
         { salary_max: { [Op.gte]: minSalary } },
         { salary_min: { [Op.gte]: minSalary } },
@@ -134,7 +143,10 @@ router.get("/", async (req, res) => {
     // order by score, paginate in memory. Falls back to newest if no CV. ──
     const wantMatch = req.query.sort === "match";
     const minMatch = Math.max(0, parseInt(req.query.min_match) || 0);
-    const cvTerms = wantMatch ? await getActiveCvTerms() : null;
+    // Always resolve CV terms (cached, cheap) so that — for EVERY sort — each
+    // returned job can carry a cv_match score and the frontend doesn't need a
+    // second /api/cv/scores round-trip. null when no CV is on file.
+    const cvTerms = await getActiveCvTerms();
 
     if (wantMatch && cvTerms) {
       const candidates = await Job.findAll({
@@ -211,12 +223,23 @@ router.get("/", async (req, res) => {
       distinct: true,
     });
 
+    // When a CV is on file, attach cv_match (0–100) to every job in the page so
+    // the frontend has it for all sorts, not just the match sort. Scored only
+    // for the returned page (not the whole table). null is sent when no CV.
+    const jobs = rows.map((r) => {
+      const j = r.toJSON();
+      j.cv_match = cvTerms
+        ? scoreJobText(cvTerms, `${j.title || ""} ${(j.description || "").slice(0, 3000)}`)
+        : null;
+      return j;
+    });
+
     res.json({
       total: count,
       page,
       limit,
       pages: Math.ceil(count / limit),
-      jobs: rows,
+      jobs,
     });
   } catch (err) {
     console.error("[jobs] list failed:", err);
